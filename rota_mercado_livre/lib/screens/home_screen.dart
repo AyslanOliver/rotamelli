@@ -8,7 +8,7 @@ import 'add_rota_screen.dart';
 import '../widgets/rota_card.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({Key? key}) : super(key: key);
+  const HomeScreen({super.key});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -17,7 +17,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   late DatabaseHelper _dbHelper;
   List<Rota> rotas = [];
-  double totalMês = 0.0;
+  double totalMes = 0.0;
   int mesAtual = DateTime.now().month;
   int anoAtual = DateTime.now().year;
 
@@ -34,7 +34,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     setState(() {
       rotas = mesRotas;
-      totalMês = total;
+      totalMes = total;
     });
   }
 
@@ -69,7 +69,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  void _changeMês(int direction) {
+  void _changeMes(int direction) {
     setState(() {
       mesAtual += direction;
       if (mesAtual > 12) {
@@ -89,7 +89,6 @@ class _HomeScreenState extends State<HomeScreen> {
       firstDate: DateTime(2020),
       lastDate: DateTime(2030),
       initialDate: DateTime(anoAtual, mesAtual),
-      locale: const Locale('pt', 'BR'),
     );
     if (picked != null) {
       setState(() {
@@ -125,7 +124,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   children: [
                     IconButton(
                       icon: const Icon(Icons.arrow_back),
-                      onPressed: () => _changeMês(-1),
+                      onPressed: () => _changeMes(-1),
                     ),
                     TextButton.icon(
                       onPressed: _pickMesAno,
@@ -143,7 +142,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                     IconButton(
                       icon: const Icon(Icons.arrow_forward),
-                      onPressed: () => _changeMês(1),
+                      onPressed: () => _changeMes(1),
                     ),
                   ],
                 ),
@@ -168,7 +167,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       ),
                       Text(
-                        CalculoValor.formatarMoeda(totalMês),
+                        CalculoValor.formatarMoeda(totalMes),
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 16,

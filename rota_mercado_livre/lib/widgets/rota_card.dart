@@ -9,11 +9,11 @@ class RotaCard extends StatelessWidget {
   final VoidCallback onEdit;
 
   const RotaCard({
-    Key? key,
+    super.key,
     required this.rota,
     required this.onDelete,
     required this.onEdit,
-  }) : super(key: key);
+  });
 
   String _getTipoVeiculoNome(String tipo) {
     return tipo == 'passeio' ? 'Carro de Passeio' : 'Utilitário';
@@ -125,9 +125,8 @@ class RotaCard extends StatelessWidget {
                             const SizedBox(height: 4),
                             _buildDetailRow(
                               'Adicional Domingo:',
-                              '+' +
-                                  CalculoValor.formatarMoeda(
-                                      CalculoValor.ADICIONAL_DOMINGO),
+                              '+${CalculoValor.formatarMoeda(
+                                      CalculoValor.ADICIONAL_DOMINGO)}',
                               fontSize: 11,
                               textColor: Colors.green,
                             ),
@@ -141,9 +140,8 @@ class RotaCard extends StatelessWidget {
                             const SizedBox(height: 4),
                             _buildDetailRow(
                               'Adicional 80+ Pacotes:',
-                              '+' +
-                                  CalculoValor.formatarMoeda(
-                                      CalculoValor.ADICIONAL_80_PACOTES),
+                              '+${CalculoValor.formatarMoeda(
+                                      CalculoValor.ADICIONAL_80_PACOTES)}',
                               fontSize: 11,
                               textColor: Colors.green,
                             ),

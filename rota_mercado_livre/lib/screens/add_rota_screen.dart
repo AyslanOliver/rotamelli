@@ -7,7 +7,7 @@ import '../utils/calculo_valor.dart';
 class AddRotaScreen extends StatefulWidget {
   final Rota? rota;
 
-  const AddRotaScreen({Key? key, this.rota}) : super(key: key);
+  const AddRotaScreen({super.key, this.rota});
 
   @override
   State<AddRotaScreen> createState() => _AddRotaScreenState();

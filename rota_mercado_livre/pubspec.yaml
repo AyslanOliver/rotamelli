@@ -14,7 +14,7 @@ dependencies:
   intl: ^0.19.0
   sqflite: ^2.3.0
   path: ^1.8.3
-  month_picker_dialog: ^0.0.6
+  month_picker_dialog: ^6.7.1
 
 dev_dependencies:
   flutter_test:
