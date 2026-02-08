@@ -1,11 +1,11 @@
 import 'package:intl/intl.dart';
 
 class CalculoValor {
-  static const double VALOR_PASSEIO = 330.00;
-  static const double VALOR_UTILITARIO = 350.00;
-  static const double ADICIONAL_DOMINGO = 40.00;
-  static const double ADICIONAL_80_PACOTES = 40.00;
-  static const int LIMITE_PACOTES = 80;
+  static const double valorPasseio = 330.00;
+  static const double valorUtilitario = 350.00;
+  static const double adicionalDomingo = 40.00;
+  static const double adicional80Pacotes = 40.00;
+  static const int limitePacotes = 80;
 
   /// Calcula o valor total da rota baseado no tipo de veículo e condições
   static double calcularValorTotal({
@@ -14,19 +14,18 @@ class CalculoValor {
     required int quantidadePacotes,
   }) {
     // Valor base conforme tipo de veículo
-    double valorBase = tipoVeiculo == 'passeio' ? VALOR_PASSEIO : VALOR_UTILITARIO;
+    double valorBase = tipoVeiculo == 'passeio' ? valorPasseio : valorUtilitario;
 
     double valorFinal = valorBase;
 
     // Adicional de domingo
     if (dataRota.weekday == 7) {
-      // 7 = domingo
-      valorFinal += ADICIONAL_DOMINGO;
+      valorFinal += adicionalDomingo;
     }
 
     // Adicional por 80 ou mais pacotes
-    if (quantidadePacotes >= LIMITE_PACOTES) {
-      valorFinal += ADICIONAL_80_PACOTES;
+    if (quantidadePacotes >= limitePacotes) {
+      valorFinal += adicional80Pacotes;
     }
 
     return valorFinal;
@@ -60,7 +59,7 @@ class CalculoValor {
       adicionais.add('Domingo (+R\$ 40,00)');
     }
 
-    if (quantidadePacotes >= LIMITE_PACOTES) {
+    if (quantidadePacotes >= limitePacotes) {
       adicionais.add('80+ pacotes (+R\$ 40,00)');
     }
 

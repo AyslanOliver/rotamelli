@@ -10,7 +10,7 @@ void main() {
         dataRota: date,
         quantidadePacotes: 10,
       );
-      expect(total, CalculoValor.VALOR_PASSEIO);
+      expect(total, CalculoValor.valorPasseio);
     });
 
     test('valor base utilitario sem adicionais', () {
@@ -20,7 +20,7 @@ void main() {
         dataRota: date,
         quantidadePacotes: 10,
       );
-      expect(total, CalculoValor.VALOR_UTILITARIO);
+      expect(total, CalculoValor.valorUtilitario);
     });
 
     test('adicional domingo aplicado', () {
@@ -32,7 +32,7 @@ void main() {
       );
       expect(
         total,
-        CalculoValor.VALOR_PASSEIO + CalculoValor.ADICIONAL_DOMINGO,
+        CalculoValor.valorPasseio + CalculoValor.adicionalDomingo,
       );
     });
 
@@ -45,7 +45,7 @@ void main() {
       );
       expect(
         total,
-        CalculoValor.VALOR_PASSEIO + CalculoValor.ADICIONAL_80_PACOTES,
+        CalculoValor.valorPasseio + CalculoValor.adicional80Pacotes,
       );
     });
 
@@ -58,9 +58,9 @@ void main() {
       );
       expect(
         total,
-        CalculoValor.VALOR_UTILITARIO +
-            CalculoValor.ADICIONAL_DOMINGO +
-            CalculoValor.ADICIONAL_80_PACOTES,
+        CalculoValor.valorUtilitario +
+            CalculoValor.adicionalDomingo +
+            CalculoValor.adicional80Pacotes,
       );
     });
   });

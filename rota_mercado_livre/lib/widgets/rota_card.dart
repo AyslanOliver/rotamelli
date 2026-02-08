@@ -113,9 +113,9 @@ class RotaCard extends StatelessWidget {
                         'Valor Base:',
                         rota.tipoVeiculo == 'passeio'
                             ? CalculoValor.formatarMoeda(
-                                CalculoValor.VALOR_PASSEIO)
+                                CalculoValor.valorPasseio)
                             : CalculoValor.formatarMoeda(
-                                CalculoValor.VALOR_UTILITARIO),
+                                CalculoValor.valorUtilitario),
                         fontSize: 11,
                       ),
                       if (rota.dataRota.weekday == 7)
@@ -125,23 +125,21 @@ class RotaCard extends StatelessWidget {
                             const SizedBox(height: 4),
                             _buildDetailRow(
                               'Adicional Domingo:',
-                              '+${CalculoValor.formatarMoeda(
-                                      CalculoValor.ADICIONAL_DOMINGO)}',
+                              '+${CalculoValor.formatarMoeda(CalculoValor.adicionalDomingo)}',
                               fontSize: 11,
                               textColor: Colors.green,
                             ),
                           ],
                         ),
                       if (rota.quantidadePacotes >=
-                          CalculoValor.LIMITE_PACOTES)
+                          CalculoValor.limitePacotes)
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             const SizedBox(height: 4),
                             _buildDetailRow(
                               'Adicional 80+ Pacotes:',
-                              '+${CalculoValor.formatarMoeda(
-                                      CalculoValor.ADICIONAL_80_PACOTES)}',
+                              '+${CalculoValor.formatarMoeda(CalculoValor.adicional80Pacotes)}',
                               fontSize: 11,
                               textColor: Colors.green,
                             ),

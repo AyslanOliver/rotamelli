@@ -41,6 +41,7 @@ class _HomeScreenState extends State<HomeScreen> {
   void _deleteRota(int id) async {
     await _dbHelper.deleteRota(id);
     _loadRotas();
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Rota deletada com sucesso!')),
     );
