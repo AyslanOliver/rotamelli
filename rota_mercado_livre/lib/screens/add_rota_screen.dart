@@ -106,7 +106,7 @@ class _AddRotaScreenState extends State<AddRotaScreen> {
 
       if (widget.rota != null) {
         await _dbHelper.updateRota(rota);
-        if (!mounted) return;
+        if (!mounted) return;q
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Rota atualizada com sucesso!')),
         );
