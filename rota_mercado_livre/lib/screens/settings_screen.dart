@@ -14,7 +14,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final _dbNameController = TextEditingController(text: 'rota_ml');
   final _apiController = TextEditingController();
   late DatabaseHelper _db;
-  static const _defaultApi = 'https://rota-ml.vercel.app';
+  static const _defaultApi = 'https://rota-ml.onrender.com';
   @override
   void initState() {
     super.initState();
