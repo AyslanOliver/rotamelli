@@ -3,6 +3,12 @@ import 'package:intl/intl.dart';
 import '../models/rota.dart';
 import '../utils/database_helper.dart';
 import '../utils/calculo_valor.dart';
+import 'dashboard_screen.dart';
+import 'home_screen.dart';
+import 'expenses_screen.dart';
+import 'settings_screen.dart';
+import 'reports_screen.dart';
+import 'help_screen.dart';
 
 class AddRotaScreen extends StatefulWidget {
   final Rota? rota;
@@ -24,6 +30,8 @@ class _AddRotaScreenState extends State<AddRotaScreen> {
   String _selectedTipoVeiculo = 'passeio';
   double _valorCalculado = 330.00;
   late DatabaseHelper _dbHelper;
+  int rotasCountMes = 0;
+  int despesasCountMes = 0;
 
   @override
   void initState() {
@@ -49,6 +57,7 @@ class _AddRotaScreenState extends State<AddRotaScreen> {
       _pacotesVulsoController = TextEditingController();
       _selectedDate = DateTime.now();
     }
+    _loadCounts();
   }
 
   @override
@@ -64,11 +73,13 @@ class _AddRotaScreenState extends State<AddRotaScreen> {
     if (_selectedDate != null &&
         _quantidadePacotesController.text.isNotEmpty) {
       int pacotes = int.tryParse(_quantidadePacotesController.text) ?? 0;
+      int vulso = int.tryParse(_pacotesVulsoController.text) ?? 0;
       setState(() {
         _valorCalculado = CalculoValor.calcularValorTotal(
           tipoVeiculo: _selectedTipoVeiculo,
           dataRota: _selectedDate!,
           quantidadePacotes: pacotes,
+          pacotesVulso: vulso,
         );
       });
     }
@@ -123,6 +134,16 @@ class _AddRotaScreenState extends State<AddRotaScreen> {
     }
   }
 
+  Future<void> _loadCounts() async {
+    final now = DateTime.now();
+    final rc = await _dbHelper.getCountByMonth(now.year, now.month);
+    final dc = await _dbHelper.getCountDespesasByMonth(now.year, now.month);
+    setState(() {
+      rotasCountMes = rc;
+      despesasCountMes = dc;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final dateFormat = DateFormat('dd/MM/yyyy', 'pt_BR');
@@ -133,6 +154,101 @@ class _AddRotaScreenState extends State<AddRotaScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.rota != null ? 'Editar Rota' : 'Nova Rota'),
+        leading: Builder(
+          builder: (context) => IconButton(
+            icon: const Icon(Icons.menu),
+            onPressed: () => Scaffold.of(context).openDrawer(),
+            tooltip: 'Menu',
+          ),
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.settings_outlined),
+            onPressed: () async {
+              await Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen()));
+            },
+          ),
+        ],
+      ),
+      drawer: Drawer(
+        width: MediaQuery.of(context).size.width < 600 ? MediaQuery.of(context).size.width * 0.72 : 320,
+        child: SafeArea(
+          child: ListView(
+            padding: EdgeInsets.zero,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                color: Theme.of(context).colorScheme.primaryContainer,
+                child: Row(
+                  children: [
+                    const Icon(Icons.dashboard_outlined),
+                    const SizedBox(width: 12),
+                    Text('Menu', style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.onPrimaryContainer)),
+                  ],
+                ),
+              ),
+              const Divider(),
+              ListTile(
+                leading: const Icon(Icons.dashboard),
+                title: const Text('Dashboard'),
+                onTap: () async {
+                  Navigator.pop(context);
+                  await Navigator.push(context, MaterialPageRoute(builder: (_) => const DashboardScreen()));
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.list_alt),
+                title: const Text('Rotas'),
+                trailing: _Badge(count: rotasCountMes),
+                onTap: () async {
+                  Navigator.pop(context);
+                  await Navigator.push(context, MaterialPageRoute(builder: (_) => const HomeScreen()));
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.attach_money),
+                title: const Text('Despesas'),
+                trailing: _Badge(count: despesasCountMes),
+                onTap: () async {
+                  Navigator.pop(context);
+                  await Navigator.push(context, MaterialPageRoute(builder: (_) => const ExpensesScreen()));
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.add_circle_outline),
+                title: const Text('Nova Rota'),
+                selected: true,
+                selectedTileColor: Theme.of(context).colorScheme.surfaceVariant,
+                onTap: () => Navigator.pop(context),
+              ),
+              const Divider(),
+              ListTile(
+                leading: const Icon(Icons.bar_chart),
+                title: const Text('Relatórios'),
+                onTap: () async {
+                  Navigator.pop(context);
+                  await Navigator.push(context, MaterialPageRoute(builder: (_) => const ReportsScreen()));
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.settings),
+                title: const Text('Configurações'),
+                onTap: () async {
+                  Navigator.pop(context);
+                  await Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen()));
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.help_outline),
+                title: const Text('Ajuda'),
+                onTap: () async {
+                  Navigator.pop(context);
+                  await Navigator.push(context, MaterialPageRoute(builder: (_) => const HelpScreen()));
+                },
+              ),
+            ],
+          ),
+        ),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -159,28 +275,24 @@ class _AddRotaScreenState extends State<AddRotaScreen> {
               ),
               const SizedBox(height: 16),
 
-              // Data da Rota
-              GestureDetector(
+              TextFormField(
+                readOnly: true,
                 onTap: () => _selectDate(context),
-                child: AbsorbPointer(
-                  child: TextFormField(
-                    decoration: InputDecoration(
-                      labelText: 'Data da Rota',
-                      hintText: 'Selecione a data',
-                      prefixIcon: const Icon(Icons.calendar_today),
-                      border: const OutlineInputBorder(),
-                      suffixText: _selectedDate != null
-                          ? '${dateFormat.format(_selectedDate!)} ($nomeDia)'
-                          : null,
-                    ),
-                    validator: (_) {
-                      if (_selectedDate == null) {
-                        return 'Por favor, selecione uma data';
-                      }
-                      return null;
-                    },
-                  ),
+                decoration: InputDecoration(
+                  labelText: 'Data da Rota',
+                  hintText: 'Selecione a data',
+                  prefixIcon: const Icon(Icons.calendar_today),
+                  border: const OutlineInputBorder(),
+                  suffixText: _selectedDate != null
+                      ? '${dateFormat.format(_selectedDate!)} ($nomeDia)'
+                      : null,
                 ),
+                validator: (_) {
+                  if (_selectedDate == null) {
+                    return 'Por favor, selecione uma data';
+                  }
+                  return null;
+                },
               ),
               const SizedBox(height: 16),
 
@@ -205,8 +317,8 @@ class _AddRotaScreenState extends State<AddRotaScreen> {
               // Tipo de Veículo
               Container(
                 decoration: BoxDecoration(
-                  border: Border.all(color: Colors.grey),
-                  borderRadius: BorderRadius.circular(4),
+                  border: Border.all(color: Theme.of(context).colorScheme.outline),
+                  borderRadius: BorderRadius.circular(8),
                 ),
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 child: DropdownButton<String>(
@@ -268,6 +380,7 @@ class _AddRotaScreenState extends State<AddRotaScreen> {
                   prefixIcon: Icon(Icons.local_shipping),
                   border: OutlineInputBorder(),
                 ),
+                onChanged: (_) => _calculateValor(),
                 validator: (value) {
                   if (value != null &&
                       value.isNotEmpty &&
@@ -284,31 +397,38 @@ class _AddRotaScreenState extends State<AddRotaScreen> {
                   _quantidadePacotesController.text.isNotEmpty)
                 Container(
                   decoration: BoxDecoration(
-                    color: Colors.amber.shade100,
+                    color: Theme.of(context).colorScheme.tertiaryContainer,
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.amber.shade400),
+                    border: Border.all(color: Theme.of(context).colorScheme.tertiary),
                   ),
                   padding: const EdgeInsets.all(12),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
+                      Text(
                         'Informações da Rota:',
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 14,
+                          color: Theme.of(context).colorScheme.onTertiaryContainer,
                         ),
                       ),
                       const SizedBox(height: 8),
                       Text(
                         'Dia: $nomeDia',
-                        style: const TextStyle(fontSize: 13),
+                        style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onTertiaryContainer),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         'Adicionais: ${CalculoValor.getInfoAdicionais(_selectedDate!, int.tryParse(_quantidadePacotesController.text) ?? 0)}',
-                        style: const TextStyle(fontSize: 13),
+                        style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onTertiaryContainer),
                       ),
+                      const SizedBox(height: 4),
+                      if (_pacotesVulsoController.text.isNotEmpty)
+                        Text(
+                          'Pacotes a Vulso: R\$ ${(CalculoValor.valorPacoteVulso * (int.tryParse(_pacotesVulsoController.text) ?? 0)).toStringAsFixed(2)}',
+                          style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onTertiaryContainer),
+                        ),
                     ],
                   ),
                 ),
@@ -317,7 +437,7 @@ class _AddRotaScreenState extends State<AddRotaScreen> {
               // Valor Calculado
               Container(
                 decoration: BoxDecoration(
-                  color: Colors.green,
+                  color: Theme.of(context).colorScheme.primaryContainer,
                   borderRadius: BorderRadius.circular(8),
                 ),
                 padding: const EdgeInsets.all(16),
@@ -325,18 +445,18 @@ class _AddRotaScreenState extends State<AddRotaScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'Valor da Rota:',
                       style: TextStyle(
-                        color: Colors.white,
+                        color: Theme.of(context).colorScheme.onPrimaryContainer,
                         fontSize: 14,
                       ),
                     ),
                     const SizedBox(height: 8),
                     Text(
                       CalculoValor.formatarMoeda(_valorCalculado),
-                      style: const TextStyle(
-                        color: Colors.white,
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onPrimaryContainer,
                         fontSize: 28,
                         fontWeight: FontWeight.bold,
                       ),
@@ -375,6 +495,25 @@ class _AddRotaScreenState extends State<AddRotaScreen> {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _Badge extends StatelessWidget {
+  final int count;
+  const _Badge({required this.count});
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.primary,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(
+        '$count',
+        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
       ),
     );
   }

@@ -145,6 +145,19 @@ class RotaCard extends StatelessWidget {
                             ),
                           ],
                         ),
+                      if (rota.pacotesVulso > 0)
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const SizedBox(height: 4),
+                            _buildDetailRow(
+                              'Pacotes a Vulso (motoristas):',
+                              '+${CalculoValor.formatarMoeda(CalculoValor.valorPacoteVulso * rota.pacotesVulso)}',
+                              fontSize: 11,
+                              textColor: Colors.blueGrey,
+                            ),
+                          ],
+                        ),
                     ],
                   ),
                 ),

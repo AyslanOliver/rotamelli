@@ -6,6 +6,11 @@ import '../utils/database_helper.dart';
 import '../utils/calculo_valor.dart';
 import 'add_rota_screen.dart';
 import '../widgets/rota_card.dart';
+import 'settings_screen.dart';
+import 'dashboard_screen.dart';
+import 'expenses_screen.dart';
+import 'reports_screen.dart';
+import 'help_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -20,6 +25,7 @@ class _HomeScreenState extends State<HomeScreen> {
   double totalMes = 0.0;
   int mesAtual = DateTime.now().month;
   int anoAtual = DateTime.now().year;
+  int despesasCountMes = 0;
 
   @override
   void initState() {
@@ -31,10 +37,12 @@ class _HomeScreenState extends State<HomeScreen> {
   void _loadRotas() async {
     final mesRotas = await _dbHelper.getRotasByMonth(anoAtual, mesAtual);
     final total = await _dbHelper.getSumValorByMonth(anoAtual, mesAtual);
+    final despesasCount = await _dbHelper.getCountDespesasByMonth(anoAtual, mesAtual);
 
     setState(() {
       rotas = mesRotas;
       totalMes = total;
+      despesasCountMes = despesasCount;
     });
   }
 
@@ -110,12 +118,107 @@ class _HomeScreenState extends State<HomeScreen> {
         title: const Text('Gerenciador de Rotas'),
         centerTitle: true,
         elevation: 2,
+        leading: Builder(
+          builder: (context) => IconButton(
+            icon: const Icon(Icons.menu),
+            onPressed: () => Scaffold.of(context).openDrawer(),
+            tooltip: 'Menu',
+          ),
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.settings_outlined),
+            onPressed: () async {
+              await Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen()));
+            },
+          ),
+        ],
+      ),
+      drawer: Drawer(
+        width: MediaQuery.of(context).size.width < 600 ? MediaQuery.of(context).size.width * 0.72 : 320,
+        child: SafeArea(
+          child: ListView(
+            padding: EdgeInsets.zero,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                color: Theme.of(context).colorScheme.primaryContainer,
+                child: Row(
+                  children: [
+                    const Icon(Icons.dashboard_outlined),
+                    const SizedBox(width: 12),
+                    Text('Menu', style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.onPrimaryContainer)),
+                  ],
+                ),
+              ),
+              const Divider(),
+              ListTile(
+                leading: const Icon(Icons.dashboard),
+                title: const Text('Dashboard'),
+                onTap: () async {
+                  Navigator.pop(context);
+                  await Navigator.push(context, MaterialPageRoute(builder: (_) => const DashboardScreen()));
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.list_alt),
+                title: const Text('Rotas'),
+                selected: true,
+                selectedTileColor: Theme.of(context).colorScheme.surfaceVariant,
+                onTap: () => Navigator.pop(context),
+              ),
+              ListTile(
+                leading: const Icon(Icons.attach_money),
+                title: const Text('Despesas'),
+                trailing: despesasCountMes > 0 ? _Badge(count: despesasCountMes) : null,
+                onTap: () async {
+                  Navigator.pop(context);
+                  await Navigator.push(context, MaterialPageRoute(builder: (_) => const ExpensesScreen()));
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.add_circle_outline),
+                title: const Text('Nova Rota'),
+                trailing: _Badge(count: rotas.length),
+                onTap: () async {
+                  Navigator.pop(context);
+                  await Navigator.push(context, MaterialPageRoute(builder: (_) => const AddRotaScreen()));
+                },
+              ),
+              const Divider(),
+              ListTile(
+                leading: const Icon(Icons.bar_chart),
+                title: const Text('Relatórios'),
+                onTap: () async {
+                  Navigator.pop(context);
+                  await Navigator.push(context, MaterialPageRoute(builder: (_) => const ReportsScreen()));
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.settings),
+                title: const Text('Configurações'),
+                onTap: () async {
+                  Navigator.pop(context);
+                  await Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen()));
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.help_outline),
+                title: const Text('Ajuda'),
+                onTap: () async {
+                  Navigator.pop(context);
+                  await Navigator.push(context, MaterialPageRoute(builder: (_) => const HelpScreen()));
+                },
+              ),
+            ],
+          ),
+        ),
       ),
       body: Column(
         children: [
           // Header com mês/ano e navegação
           Container(
-            color: Colors.blue.shade50,
+            color: Theme.of(context).colorScheme.surfaceVariant,
             padding: const EdgeInsets.all(16),
             child: Column(
               children: [
@@ -138,7 +241,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       ),
                       style: TextButton.styleFrom(
-                        foregroundColor: Colors.blue.shade700,
+                        foregroundColor: Theme.of(context).colorScheme.primary,
                       ),
                     ),
                     IconButton(
@@ -151,7 +254,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 // Total do mês
                 Container(
                   decoration: BoxDecoration(
-                    color: Colors.green,
+                    color: Theme.of(context).colorScheme.primaryContainer,
                     borderRadius: BorderRadius.circular(8),
                   ),
                   padding:
@@ -159,18 +262,18 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text(
+                      Text(
                         'Total do Mês:',
                         style: TextStyle(
-                          color: Colors.white,
+                          color: Theme.of(context).colorScheme.onPrimaryContainer,
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                       Text(
                         CalculoValor.formatarMoeda(totalMes),
-                        style: const TextStyle(
-                          color: Colors.white,
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onPrimaryContainer,
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
                         ),
@@ -236,6 +339,25 @@ class _HomeScreenState extends State<HomeScreen> {
           _loadRotas();
         },
         child: const Icon(Icons.add),
+      ),
+    );
+  }
+}
+
+class _Badge extends StatelessWidget {
+  final int count;
+  const _Badge({required this.count});
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.primary,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(
+        '$count',
+        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
       ),
     );
   }

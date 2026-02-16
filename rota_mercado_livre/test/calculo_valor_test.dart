@@ -63,5 +63,19 @@ void main() {
             CalculoValor.adicional80Pacotes,
       );
     });
+
+    test('pacotes a vulso soma 2 por unidade', () {
+      final date = DateTime(2026, 2, 7); // sábado
+      final total = CalculoValor.calcularValorTotal(
+        tipoVeiculo: 'passeio',
+        dataRota: date,
+        quantidadePacotes: 10,
+        pacotesVulso: 3,
+      );
+      expect(
+        total,
+        CalculoValor.valorPasseio,
+      );
+    });
   });
 }

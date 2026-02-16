@@ -1,0 +1,9 @@
+{
+  "name": "rota-ml-api",
+  "private": true,
+  "type": "module",
+  "version": "1.0.0",
+  "dependencies": {
+    "mongodb": "^6.6.0"
+  }
+}
