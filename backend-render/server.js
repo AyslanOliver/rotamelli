@@ -15,7 +15,47 @@ function getDb() {
   return dbPromise;
 }
 
+async function ensureDbSetup() {
+  if (!uri || !dbName) return;
+  const db = await getDb();
+  const existing = new Set((await db.listCollections().toArray()).map(c => c.name));
+  if (!existing.has('rotas')) await db.createCollection('rotas');
+  if (!existing.has('despesas')) await db.createCollection('despesas');
+  await db.collection('rotas').createIndex({ dataRotaDate: -1 });
+  await db.collection('despesas').createIndex({ dataDespesaDate: -1 });
+}
+ensureDbSetup().catch(() => {});
+
+app.get('/', (req, res) => {
+  res.json({
+    name: 'rota-ml-render-api',
+    status: 'ok',
+    endpoints: [
+      'GET /health',
+      'POST /api/rotas',
+      'GET  /api/rotas?year=YYYY&month=MM',
+      'POST /api/despesas',
+      'GET  /api/despesas?year=YYYY&month=MM',
+      'GET  /api/metrics/avulso-mes?year=YYYY&month=MM'
+    ]
+  });
+});
+
 app.get('/health', (req, res) => res.status(200).json({ ok: true }));
+
+app.get('/health/db', async (req, res) => {
+  try {
+    if (!uri || !dbName) {
+      res.status(400).json({ ok: false, error: 'missing MONGODB_URI or MONGODB_DB' });
+      return;
+    }
+    const db = await getDb();
+    const cols = await db.listCollections().toArray();
+    res.json({ ok: true, db: dbName, collections: cols.map(c => c.name) });
+  } catch (e) {
+    res.status(500).json({ ok: false });
+  }
+});
 
 app.post('/api/rotas', async (req, res) => {
   const db = await getDb();
