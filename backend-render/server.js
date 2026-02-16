@@ -5,6 +5,7 @@ import { MongoClient } from 'mongodb';
 const app = express();
 app.use(cors());
 app.use(express.json());
+const asyncHandler = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 
 const uri = process.env.MONGODB_URI;
 const dbName = process.env.MONGODB_DB;
@@ -13,6 +14,9 @@ let dbPromise;
 function getDb() {
   if (!dbPromise) dbPromise = client.connect().then(c => c.db(dbName));
   return dbPromise;
+}
+function configOk() {
+  return Boolean(uri && dbName);
 }
 
 async function ensureDbSetup() {
@@ -43,21 +47,21 @@ app.get('/', (req, res) => {
 
 app.get('/health', (req, res) => res.status(200).json({ ok: true }));
 
-app.get('/health/db', async (req, res) => {
-  try {
-    if (!uri || !dbName) {
-      res.status(400).json({ ok: false, error: 'missing MONGODB_URI or MONGODB_DB' });
-      return;
-    }
-    const db = await getDb();
-    const cols = await db.listCollections().toArray();
-    res.json({ ok: true, db: dbName, collections: cols.map(c => c.name) });
-  } catch (e) {
-    res.status(500).json({ ok: false });
+app.get('/health/db', asyncHandler(async (req, res) => {
+  if (!configOk()) {
+    res.status(400).json({ ok: false, error: 'missing MONGODB_URI or MONGODB_DB' });
+    return;
   }
-});
+  const db = await getDb();
+  const cols = await db.listCollections().toArray();
+  res.json({ ok: true, db: dbName, collections: cols.map(c => c.name) });
+}));
 
-app.post('/api/rotas', async (req, res) => {
+app.post('/api/rotas', asyncHandler(async (req, res) => {
+  if (!configOk()) {
+    res.status(500).json({ ok: false, error: 'db not configured' });
+    return;
+  }
   const db = await getDb();
   const doc = req.body || {};
   if (doc.dataRota) {
@@ -65,9 +69,13 @@ app.post('/api/rotas', async (req, res) => {
   }
   await db.collection('rotas').insertOne(doc);
   res.status(201).json(doc);
-});
+}));
 
-app.get('/api/rotas', async (req, res) => {
+app.get('/api/rotas', asyncHandler(async (req, res) => {
+  if (!configOk()) {
+    res.status(500).json({ ok: false, error: 'db not configured' });
+    return;
+  }
   const db = await getDb();
   const coll = db.collection('rotas');
   const year = Number(req.query.year);
@@ -81,9 +89,13 @@ app.get('/api/rotas', async (req, res) => {
   const end = new Date(year, month, 0, 23, 59, 59, 999);
   const list = await coll.find({ dataRotaDate: { $gte: start, $lte: end } }).sort({ dataRotaDate: -1 }).toArray();
   res.json(list);
-});
+}));
 
-app.post('/api/despesas', async (req, res) => {
+app.post('/api/despesas', asyncHandler(async (req, res) => {
+  if (!configOk()) {
+    res.status(500).json({ ok: false, error: 'db not configured' });
+    return;
+  }
   const db = await getDb();
   const doc = req.body || {};
   if (doc.dataDespesa) {
@@ -91,9 +103,13 @@ app.post('/api/despesas', async (req, res) => {
   }
   await db.collection('despesas').insertOne(doc);
   res.status(201).json(doc);
-});
+}));
 
-app.get('/api/despesas', async (req, res) => {
+app.get('/api/despesas', asyncHandler(async (req, res) => {
+  if (!configOk()) {
+    res.status(500).json({ ok: false, error: 'db not configured' });
+    return;
+  }
   const db = await getDb();
   const coll = db.collection('despesas');
   const year = Number(req.query.year);
@@ -107,9 +123,13 @@ app.get('/api/despesas', async (req, res) => {
   const end = new Date(year, month, 0, 23, 59, 59, 999);
   const list = await coll.find({ dataDespesaDate: { $gte: start, $lte: end } }).sort({ dataDespesaDate: -1 }).toArray();
   res.json(list);
-});
+}));
 
-app.get('/api/metrics/avulso-mes', async (req, res) => {
+app.get('/api/metrics/avulso-mes', asyncHandler(async (req, res) => {
+  if (!configOk()) {
+    res.status(500).json({ ok: false, error: 'db not configured' });
+    return;
+  }
   const db = await getDb();
   const coll = db.collection('rotas');
   const year = Number(req.query.year);
@@ -123,6 +143,11 @@ app.get('/api/metrics/avulso-mes', async (req, res) => {
   const unit = Number(process.env.AVULSO_UNIT || 2);
   const total = (agg[0]?.totalPacotes ?? 0) * unit;
   res.json({ total });
+}));
+
+app.use((err, req, res, next) => {
+  console.error(err);
+  res.status(500).json({ ok: false });
 });
 
 const port = process.env.PORT || 8080;
