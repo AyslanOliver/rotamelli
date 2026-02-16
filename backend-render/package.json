@@ -9,6 +9,7 @@
     "mongodb": "^6.6.0"
   },
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "initdb": "node scripts/initdb.js"
   }
 }

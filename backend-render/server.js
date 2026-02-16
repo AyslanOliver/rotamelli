@@ -8,7 +8,7 @@ app.use(express.json());
 const asyncHandler = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 
 const uri = process.env.MONGODB_URI;
-const dbName = process.env.MONGODB_DB;
+const dbName = process.env.MONGODB_DB || 'rotamelli';
 const client = new MongoClient(uri);
 let dbPromise;
 function getDb() {
