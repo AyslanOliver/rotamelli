@@ -14,7 +14,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final _dbNameController = TextEditingController(text: 'rota_ml');
   final _apiController = TextEditingController();
   late DatabaseHelper _db;
-  static const _defaultApi = 'https://rota-ml.onrender.com';
+  static const _defaultApi = 'https://rotamelli.onrender.com';
+  static const _oldDefaultApi = 'https://rota-ml.onrender.com';
   @override
   void initState() {
     super.initState();
@@ -29,9 +30,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
     setState(() {
       _controller.text = v ?? '';
       if (dbn != null && dbn.isNotEmpty) _dbNameController.text = dbn;
-      _apiController.text = (api == null || api.isEmpty) ? _defaultApi : api;
+      _apiController.text = (api == null || api.isEmpty || api == _oldDefaultApi) ? _defaultApi : api;
     });
-    if (api == null || api.isEmpty) {
+    if (api == null || api.isEmpty || api == _oldDefaultApi) {
       await _db.setSetting('api_base_url', _defaultApi);
     }
   }
