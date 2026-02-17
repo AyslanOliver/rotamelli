@@ -7,6 +7,9 @@ import 'add_rota_screen.dart';
 import 'settings_screen.dart';
 import 'reports_screen.dart';
 import 'help_screen.dart';
+import '../widgets/app_card.dart';
+
+enum QuinzenaFilter { full, first, second }
 
 class ExpensesScreen extends StatefulWidget {
   const ExpensesScreen({super.key});
@@ -23,6 +26,10 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
   late DatabaseHelper _db;
   List<Despesa> _despesas = [];
   int rotasCountMes = 0;
+  int mesAtual = DateTime.now().month;
+  int anoAtual = DateTime.now().year;
+  QuinzenaFilter _filter = QuinzenaFilter.full;
+  double _totalPeriodo = 0.0;
 
   @override
   void initState() {
@@ -32,11 +39,25 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
   }
 
   Future<void> _load() async {
-    final now = DateTime.now();
-    final list = await _db.getDespesasByMonth(now.year, now.month);
-    final rotasCount = await _db.getCountByMonth(now.year, now.month);
+    List<Despesa> list;
+    double total;
+    if (_filter == QuinzenaFilter.full) {
+      list = await _db.getDespesasByMonth(anoAtual, mesAtual);
+      total = await _db.getSumDespesasByMonth(anoAtual, mesAtual);
+    } else {
+      final firstStart = DateTime(anoAtual, mesAtual, 1);
+      final firstEnd = DateTime(anoAtual, mesAtual, 15);
+      final secondStart = DateTime(anoAtual, mesAtual, 16);
+      final secondEnd = DateTime(anoAtual, mesAtual + 1, 0);
+      final start = _filter == QuinzenaFilter.first ? firstStart : secondStart;
+      final end = _filter == QuinzenaFilter.first ? firstEnd : secondEnd;
+      list = await _db.getDespesasByDateRange(start, end);
+      total = await _db.getSumDespesasByDateRange(start, end);
+    }
+    final rotasCount = await _db.getCountByMonth(anoAtual, mesAtual);
     setState(() {
       _despesas = list;
+      _totalPeriodo = total;
       rotasCountMes = rotasCount;
     });
   }
@@ -138,7 +159,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                 leading: const Icon(Icons.attach_money),
                 title: const Text('Despesas'),
                 selected: true,
-                selectedTileColor: Theme.of(context).colorScheme.surfaceVariant,
+                selectedTileColor: Theme.of(context).colorScheme.surfaceContainerHighest,
                 trailing: _Badge(count: _despesas.length),
                 onTap: () => Navigator.pop(context),
               ),
@@ -183,6 +204,65 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
+            Wrap(
+              spacing: 8,
+              children: [
+                ChoiceChip(
+                  label: const Text('Mês inteiro'),
+                  selected: _filter == QuinzenaFilter.full,
+                  onSelected: (s) {
+                    if (!s) return;
+                    setState(() => _filter = QuinzenaFilter.full);
+                    _load();
+                  },
+                ),
+                ChoiceChip(
+                  label: const Text('1ª quinzena'),
+                  selected: _filter == QuinzenaFilter.first,
+                  onSelected: (s) {
+                    if (!s) return;
+                    setState(() => _filter = QuinzenaFilter.first);
+                    _load();
+                  },
+                ),
+                ChoiceChip(
+                  label: const Text('2ª quinzena'),
+                  selected: _filter == QuinzenaFilter.second,
+                  onSelected: (s) {
+                    if (!s) return;
+                    setState(() => _filter = QuinzenaFilter.second);
+                    _load();
+                  },
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            AppCard(
+              gradient: LinearGradient(
+                colors: [
+                  Theme.of(context).colorScheme.primaryContainer,
+                  Color.alphaBlend(Colors.black.withValues(alpha: 0.05), Theme.of(context).colorScheme.primaryContainer),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              padding: const EdgeInsets.all(12),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Total do período', style: TextStyle(fontWeight: FontWeight.w600)),
+                  AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 350),
+                    child: Text(
+                      'R\$ ${_totalPeriodo.toStringAsFixed(2)}',
+                      key: ValueKey(_totalPeriodo.toStringAsFixed(2)),
+                      style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.onPrimaryContainer),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
             Form(
               key: _formKey,
               child: Column(
@@ -254,11 +334,32 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                       itemBuilder: (context, index) {
                         final d = _despesas[index];
                         final ds = '${d.dataDespesa.day.toString().padLeft(2, '0')}/${d.dataDespesa.month.toString().padLeft(2, '0')}/${d.dataDespesa.year}';
-                        return ListTile(
-                          leading: const Icon(Icons.receipt_long),
-                          title: Text(d.descricao),
-                          subtitle: Text('${d.categoria ?? 'Sem categoria'} • $ds'),
-                          trailing: Text('R\$ ${d.valor.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                        return AppCard(
+                          child: ListTile(
+                            leading: const Icon(Icons.receipt_long),
+                            title: Text(d.descricao),
+                            subtitle: Text('${d.categoria ?? 'Sem categoria'} • $ds'),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text('R\$ ${d.valor.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                                const SizedBox(width: 8),
+                                PopupMenuButton<String>(
+                                  onSelected: (value) async {
+                                    if (value == 'edit') {
+                                      await _editDespesa(d);
+                                    } else if (value == 'delete') {
+                                      await _deleteDespesa(d);
+                                    }
+                                  },
+                                  itemBuilder: (context) => const [
+                                    PopupMenuItem(value: 'edit', child: Text('Editar')),
+                                    PopupMenuItem(value: 'delete', child: Text('Excluir')),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
                         );
                       },
                     ),
@@ -267,6 +368,133 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _editDespesa(Despesa d) async {
+    final descricaoController = TextEditingController(text: d.descricao);
+    final valorController = TextEditingController(text: d.valor.toStringAsFixed(2));
+    DateTime data = d.dataDespesa;
+    String? categoria = d.categoria;
+    final localFormKey = GlobalKey<FormState>();
+    await showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setStateDialog) {
+            return AlertDialog(
+              title: const Text('Editar despesa'),
+              content: SingleChildScrollView(
+                child: Form(
+                  key: localFormKey,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      TextFormField(
+                        controller: descricaoController,
+                        decoration: const InputDecoration(labelText: 'Descrição'),
+                        validator: (v) => v == null || v.trim().isEmpty ? 'Informe a descrição' : null,
+                      ),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: valorController,
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        decoration: const InputDecoration(labelText: 'Valor'),
+                        validator: (v) => (double.tryParse((v ?? '').replaceAll(',', '.')) ?? 0) > 0 ? null : 'Informe um valor válido',
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: InputDecorator(
+                              decoration: const InputDecoration(labelText: 'Data'),
+                              child: InkWell(
+                                onTap: () async {
+                                  final picked = await showDatePicker(
+                                    context: context,
+                                    initialDate: data,
+                                    firstDate: DateTime(2020),
+                                    lastDate: DateTime(2035),
+                                    locale: const Locale('pt', 'BR'),
+                                  );
+                                  if (picked != null) {
+                                    setStateDialog(() {
+                                      data = picked;
+                                    });
+                                  }
+                                },
+                                child: Text('${data.day.toString().padLeft(2, '0')}/${data.month.toString().padLeft(2, '0')}/${data.year}'),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      DropdownButtonFormField<String>(
+                        initialValue: categoria,
+                        items: const [
+                          DropdownMenuItem(value: 'Combustível', child: Text('Combustível')),
+                          DropdownMenuItem(value: 'Alimentação', child: Text('Alimentação')),
+                          DropdownMenuItem(value: 'Manutenção', child: Text('Manutenção')),
+                          DropdownMenuItem(value: 'Outros', child: Text('Outros')),
+                        ],
+                        onChanged: (v) => setStateDialog(() {
+                          categoria = v;
+                        }),
+                        decoration: const InputDecoration(labelText: 'Categoria'),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
+                ElevatedButton(
+                  onPressed: () async {
+                    if (!localFormKey.currentState!.validate()) return;
+                    final valor = double.tryParse(valorController.text.replaceAll(',', '.')) ?? 0.0;
+                    final updated = Despesa(
+                      id: d.id,
+                      descricao: descricaoController.text.trim(),
+                      valor: valor,
+                      dataDespesa: data,
+                      categoria: categoria,
+                    );
+                    await _db.updateDespesa(updated);
+                    await _load();
+                    if (!mounted) return;
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Despesa atualizada')));
+                  },
+                  child: const Text('Salvar'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _deleteDespesa(Despesa d) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Excluir despesa'),
+        content: Text('Deseja excluir "${d.descricao}"?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
+          ElevatedButton(onPressed: () => Navigator.pop(context, true), child: const Text('Excluir')),
+        ],
+      ),
+    );
+    if (confirm == true) {
+      if (d.id != null) {
+        await _db.deleteDespesa(d.id!);
+        await _load();
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Despesa excluída')));
+      }
+    }
   }
 }
 

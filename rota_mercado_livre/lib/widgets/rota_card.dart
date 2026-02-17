@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/rota.dart';
 import '../utils/calculo_valor.dart';
+import 'app_card.dart';
 
 class RotaCard extends StatelessWidget {
   final Rota rota;
@@ -25,97 +26,76 @@ class RotaCard extends StatelessWidget {
     final nomeDia = CalculoValor.getNomeDia(rota.dataRota);
     final moedaFormatada = CalculoValor.formatarMoeda(rota.valorCalculado);
 
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 0),
-      elevation: 2,
-      child: ExpansionTile(
-        title: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    rota.nomeRota,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '${dateFormat.format(rota.dataRota)} - $nomeDia',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey.shade600,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Text(
-              moedaFormatada,
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: Colors.green,
-              ),
-            ),
-          ],
-        ),
+    final baseColor = Theme.of(context).colorScheme.primaryContainer;
+    final g = LinearGradient(
+      colors: [
+        baseColor,
+        Color.alphaBlend(Colors.black.withValues(alpha: 0.04), baseColor),
+      ],
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+    );
+
+    final tile = ExpansionTile(
+      title: Row(
         children: [
-          Padding(
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  rota.nomeRota,
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${dateFormat.format(rota.dataRota)} - $nomeDia',
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                ),
+              ],
+            ),
+          ),
+          Text(
+            moedaFormatada,
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.green),
+          ),
+        ],
+      ),
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(12),
+          child: AppCard(
+            gradient: g,
             padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _buildDetailRow('Placa do Carro:', rota.placaCarro),
                 const SizedBox(height: 12),
-                _buildDetailRow(
-                  'Tipo de Veículo:',
-                  _getTipoVeiculoNome(rota.tipoVeiculo),
-                ),
+                _buildDetailRow('Tipo de Veículo:', _getTipoVeiculoNome(rota.tipoVeiculo)),
                 const SizedBox(height: 12),
-                _buildDetailRow(
-                  'Quantidade de Pacotes:',
-                  rota.quantidadePacotes.toString(),
-                ),
+                _buildDetailRow('Quantidade de Pacotes:', rota.quantidadePacotes.toString()),
                 const SizedBox(height: 12),
                 if (rota.pacotesVulso > 0)
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _buildDetailRow(
-                        'Pacotes a Vulso:',
-                        rota.pacotesVulso.toString(),
-                      ),
+                      _buildDetailRow('Pacotes a Vulso:', rota.pacotesVulso.toString()),
                       const SizedBox(height: 12),
                     ],
                   ),
-                Container(
-                  decoration: BoxDecoration(
-                    color: Colors.blue.shade50,
-                    borderRadius: BorderRadius.circular(6),
-                  ),
+                AppCard(
                   padding: const EdgeInsets.all(12),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        'Detalhes do Valor:',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12,
-                        ),
-                      ),
+                      const Text('Detalhes do Valor:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
                       const SizedBox(height: 8),
                       _buildDetailRow(
                         'Valor Base:',
                         rota.tipoVeiculo == 'passeio'
-                            ? CalculoValor.formatarMoeda(
-                                CalculoValor.valorPasseio)
-                            : CalculoValor.formatarMoeda(
-                                CalculoValor.valorUtilitario),
+                            ? CalculoValor.formatarMoeda(CalculoValor.valorPasseio)
+                            : CalculoValor.formatarMoeda(CalculoValor.valorUtilitario),
                         fontSize: 11,
                       ),
                       if (rota.dataRota.weekday == 7)
@@ -131,8 +111,7 @@ class RotaCard extends StatelessWidget {
                             ),
                           ],
                         ),
-                      if (rota.quantidadePacotes >=
-                          CalculoValor.limitePacotes)
+                      if (rota.quantidadePacotes >= CalculoValor.limitePacotes)
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -169,12 +148,7 @@ class RotaCard extends StatelessWidget {
                       onPressed: onEdit,
                       icon: const Icon(Icons.edit, size: 18),
                       label: const Text('Editar'),
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 8,
-                        ),
-                      ),
+                      style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8)),
                     ),
                     const SizedBox(width: 8),
                     ElevatedButton.icon(
@@ -184,10 +158,7 @@ class RotaCard extends StatelessWidget {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.red,
                         foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 8,
-                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                       ),
                     ),
                   ],
@@ -195,9 +166,10 @@ class RotaCard extends StatelessWidget {
               ],
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
+    return tile;
   }
 
   Widget _buildDetailRow(

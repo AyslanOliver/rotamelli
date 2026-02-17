@@ -9,6 +9,9 @@ import 'expenses_screen.dart';
 import 'settings_screen.dart';
 import 'reports_screen.dart';
 import 'help_screen.dart';
+import '../widgets/app_card.dart';
+ 
+enum QuinzenaFilter { full, first, second }
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -38,6 +41,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
   int despesasCountMes = 0;
   double avulsoValorMes = 0.0;
   List<Rota> recentes = [];
+  QuinzenaFilter _filter = QuinzenaFilter.full;
+  double _periodRotas = 0.0;
+  double _periodDespesas = 0.0;
+  int _periodRotasCount = 0;
 
   @override
   void initState() {
@@ -75,6 +82,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
       }
     } catch (_) {}
     final vulsoSecond = await _dbHelper.getSumPacotesVulsoByDateRange(secondStart, secondEnd);
+    DateTime pStart, pEnd;
+    if (_filter == QuinzenaFilter.full) {
+      pStart = firstStart;
+      pEnd = secondEnd;
+    } else if (_filter == QuinzenaFilter.first) {
+      pStart = firstStart;
+      pEnd = firstEnd;
+    } else {
+      pStart = secondStart;
+      pEnd = secondEnd;
+    }
+    final periodRotas = await _dbHelper.getSumRotasByDateRange(pStart, pEnd);
+    final periodDespesas = await _dbHelper.getSumDespesasByDateRange(pStart, pEnd);
+    final periodRotasCount = (await _dbHelper.getRotasByDateRange(pStart, pEnd)).length;
     setState(() {
       totalMes = total;
       quantidadeMes = count;
@@ -92,6 +113,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
       primeiraQuinzenaPacotesVulso = vulsoFirst;
       segundaQuinzenaPacotesVulso = vulsoSecond;
       recentes = recents;
+      _periodRotas = periodRotas;
+      _periodDespesas = periodDespesas;
+      _periodRotasCount = periodRotasCount;
     });
   }
 
@@ -142,7 +166,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 leading: const Icon(Icons.dashboard),
                 title: const Text('Dashboard'),
                 selected: true,
-                selectedTileColor: Theme.of(context).colorScheme.surfaceVariant,
+                selectedTileColor: Theme.of(context).colorScheme.surfaceContainerHighest,
                 onTap: () => Navigator.pop(context),
               ),
               ListTile(
@@ -209,6 +233,52 @@ class _DashboardScreenState extends State<DashboardScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              Wrap(
+                spacing: 8,
+                children: [
+                  ChoiceChip(
+                    label: const Text('Mês inteiro'),
+                    selected: _filter == QuinzenaFilter.full,
+                    onSelected: (s) {
+                      if (!s) return;
+                      setState(() => _filter = QuinzenaFilter.full);
+                      _loadData();
+                    },
+                  ),
+                  ChoiceChip(
+                    label: const Text('1ª quinzena'),
+                    selected: _filter == QuinzenaFilter.first,
+                    onSelected: (s) {
+                      if (!s) return;
+                      setState(() => _filter = QuinzenaFilter.first);
+                      _loadData();
+                    },
+                  ),
+                  ChoiceChip(
+                    label: const Text('2ª quinzena'),
+                    selected: _filter == QuinzenaFilter.second,
+                    onSelected: (s) {
+                      if (!s) return;
+                      setState(() => _filter = QuinzenaFilter.second);
+                      _loadData();
+                    },
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              AppCard(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('Resumo do período', style: TextStyle(fontWeight: FontWeight.w600)),
+                    Text(
+                      'Rotas: ${CalculoValor.formatarMoeda(_periodRotas)} • Despesas: ${CalculoValor.formatarMoeda(_periodDespesas)} • Qtd: $_periodRotasCount',
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
               GridView.count(
                 crossAxisCount: MediaQuery.of(context).size.width > 900 ? 4 : 2,
                 shrinkWrap: true,
@@ -270,8 +340,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.grey.shade800),
               ),
               const SizedBox(height: 8),
-              Container(
-                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 4))]),
+              AppCard(
                 child: recentes.isEmpty
                     ? Padding(
                         padding: const EdgeInsets.all(24),
@@ -312,22 +381,70 @@ class _MetricCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textColor = ThemeData.estimateBrightnessForColor(color) == Brightness.dark ? Colors.white : Colors.black;
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(8)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: TextStyle(color: textColor, fontSize: 14),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            CalculoValor.formatarMoeda(value),
-            style: TextStyle(color: textColor, fontSize: 22, fontWeight: FontWeight.bold),
-          ),
-        ],
+    final g = LinearGradient(
+      colors: [
+        color,
+        Color.alphaBlend(Colors.black.withValues(alpha: 0.05), color),
+      ],
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+    );
+    return InkWell(
+      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ReportsScreen())),
+      borderRadius: BorderRadius.circular(8),
+      child: AppCard(
+        gradient: g,
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: Color.alphaBlend(Colors.white.withValues(alpha: 0.2), color),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.attach_money, color: textColor),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: TextStyle(color: textColor, fontSize: 14)),
+                  const SizedBox(height: 8),
+                  AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 350),
+                    transitionBuilder: (child, anim) => FadeTransition(opacity: anim, child: child),
+                    child: Text(
+                      CalculoValor.formatarMoeda(value),
+                      key: ValueKey(value.toStringAsFixed(2)),
+                      style: TextStyle(color: textColor, fontSize: 22, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      return TweenAnimationBuilder<double>(
+                        tween: Tween(begin: 0, end: 1),
+                        duration: const Duration(milliseconds: 600),
+                        builder: (context, t, _) {
+                          return Container(
+                            width: constraints.maxWidth * t,
+                            height: 4,
+                            decoration: BoxDecoration(
+                              color: textColor.withValues(alpha: 0.3),
+                              borderRadius: BorderRadius.circular(2),
+                            ),
+                          );
+                        },
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -341,22 +458,51 @@ class _CountCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textColor = ThemeData.estimateBrightnessForColor(color) == Brightness.dark ? Colors.white : Colors.black;
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(8)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: TextStyle(color: textColor, fontSize: 14),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            '$count',
-            style: TextStyle(color: textColor, fontSize: 22, fontWeight: FontWeight.bold),
-          ),
-        ],
+    final g = LinearGradient(
+      colors: [
+        color,
+        Color.alphaBlend(Colors.black.withValues(alpha: 0.05), color),
+      ],
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+    );
+    return InkWell(
+      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const HomeScreen())),
+      borderRadius: BorderRadius.circular(8),
+      child: AppCard(
+        gradient: g,
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: Color.alphaBlend(Colors.white.withValues(alpha: 0.2), color),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.route, color: textColor),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: TextStyle(color: textColor, fontSize: 14)),
+                  const SizedBox(height: 8),
+                  AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 350),
+                    transitionBuilder: (child, anim) => ScaleTransition(scale: anim, child: child),
+                    child: Text(
+                      '$count',
+                      key: ValueKey(count),
+                      style: TextStyle(color: textColor, fontSize: 22, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -371,18 +517,70 @@ class _PacotesCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textColor = ThemeData.estimateBrightnessForColor(color) == Brightness.dark ? Colors.white : Colors.black;
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(8)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(title, style: TextStyle(color: textColor, fontSize: 14)),
-          const SizedBox(height: 8),
-          Text('Totais: $total', style: TextStyle(color: textColor, fontSize: 20, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 4),
-          Text('Vulso: $vulso', style: TextStyle(color: textColor, fontSize: 16)),
-        ],
+    final g = LinearGradient(
+      colors: [
+        color,
+        Color.alphaBlend(Colors.black.withValues(alpha: 0.05), color),
+      ],
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+    );
+    return InkWell(
+      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ReportsScreen())),
+      borderRadius: BorderRadius.circular(8),
+      child: AppCard(
+        gradient: g,
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: Color.alphaBlend(Colors.white.withValues(alpha: 0.2), color),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.local_shipping_outlined, color: textColor),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: TextStyle(color: textColor, fontSize: 14)),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 350),
+                          transitionBuilder: (child, anim) => FadeTransition(opacity: anim, child: child),
+                          child: Text(
+                            'Totais: $total',
+                            key: ValueKey('tot_$total'),
+                            style: TextStyle(color: textColor, fontSize: 20, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 350),
+                        child: Container(
+                          key: ValueKey('v_$vulso'),
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: textColor.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text('Vulso: $vulso', style: TextStyle(color: textColor)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

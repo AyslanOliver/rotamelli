@@ -11,6 +11,9 @@ import 'dashboard_screen.dart';
 import 'expenses_screen.dart';
 import 'reports_screen.dart';
 import 'help_screen.dart';
+import '../widgets/app_card.dart';
+
+enum QuinzenaFilter { full, first, second }
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -26,6 +29,7 @@ class _HomeScreenState extends State<HomeScreen> {
   int mesAtual = DateTime.now().month;
   int anoAtual = DateTime.now().year;
   int despesasCountMes = 0;
+  QuinzenaFilter _filter = QuinzenaFilter.full;
 
   @override
   void initState() {
@@ -35,8 +39,21 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _loadRotas() async {
-    final mesRotas = await _dbHelper.getRotasByMonth(anoAtual, mesAtual);
-    final total = await _dbHelper.getSumValorByMonth(anoAtual, mesAtual);
+    List<Rota> mesRotas;
+    double total;
+    if (_filter == QuinzenaFilter.full) {
+      mesRotas = await _dbHelper.getRotasByMonth(anoAtual, mesAtual);
+      total = await _dbHelper.getSumValorByMonth(anoAtual, mesAtual);
+    } else {
+      final firstStart = DateTime(anoAtual, mesAtual, 1);
+      final firstEnd = DateTime(anoAtual, mesAtual, 15);
+      final secondStart = DateTime(anoAtual, mesAtual, 16);
+      final secondEnd = DateTime(anoAtual, mesAtual + 1, 0);
+      final start = _filter == QuinzenaFilter.first ? firstStart : secondStart;
+      final end = _filter == QuinzenaFilter.first ? firstEnd : secondEnd;
+      mesRotas = await _dbHelper.getRotasByDateRange(start, end);
+      total = await _dbHelper.getSumRotasByDateRange(start, end);
+    }
     final despesasCount = await _dbHelper.getCountDespesasByMonth(anoAtual, mesAtual);
 
     setState(() {
@@ -218,7 +235,7 @@ class _HomeScreenState extends State<HomeScreen> {
         children: [
           // Header com mês/ano e navegação
           Container(
-            color: Theme.of(context).colorScheme.surfaceVariant,
+            color: Theme.of(context).colorScheme.surfaceContainerHighest,
             padding: const EdgeInsets.all(16),
             child: Column(
               children: [
@@ -251,14 +268,50 @@ class _HomeScreenState extends State<HomeScreen> {
                   ],
                 ),
                 const SizedBox(height: 16),
+                Wrap(
+                  spacing: 8,
+                  children: [
+                    ChoiceChip(
+                      label: const Text('Mês inteiro'),
+                      selected: _filter == QuinzenaFilter.full,
+                      onSelected: (s) {
+                        if (!s) return;
+                        setState(() => _filter = QuinzenaFilter.full);
+                        _loadRotas();
+                      },
+                    ),
+                    ChoiceChip(
+                      label: const Text('1ª quinzena'),
+                      selected: _filter == QuinzenaFilter.first,
+                      onSelected: (s) {
+                        if (!s) return;
+                        setState(() => _filter = QuinzenaFilter.first);
+                        _loadRotas();
+                      },
+                    ),
+                    ChoiceChip(
+                      label: const Text('2ª quinzena'),
+                      selected: _filter == QuinzenaFilter.second,
+                      onSelected: (s) {
+                        if (!s) return;
+                        setState(() => _filter = QuinzenaFilter.second);
+                        _loadRotas();
+                      },
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
                 // Total do mês
-                Container(
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.primaryContainer,
-                    borderRadius: BorderRadius.circular(8),
+                AppCard(
+                  gradient: LinearGradient(
+                    colors: [
+                      Theme.of(context).colorScheme.primaryContainer,
+                      Color.alphaBlend(Colors.black.withValues(alpha: 0.05), Theme.of(context).colorScheme.primaryContainer),
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
                   ),
-                  padding:
-                      const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -270,12 +323,16 @@ class _HomeScreenState extends State<HomeScreen> {
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      Text(
-                        CalculoValor.formatarMoeda(totalMes),
-                        style: TextStyle(
-                          color: Theme.of(context).colorScheme.onPrimaryContainer,
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
+                      AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 350),
+                        child: Text(
+                          CalculoValor.formatarMoeda(totalMes),
+                          key: ValueKey<double>(totalMes),
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.onPrimaryContainer,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                     ],
@@ -286,47 +343,74 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           // Lista de rotas
           Expanded(
-            child: rotas.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
+            child: RefreshIndicator(
+              onRefresh: () async => _loadRotas(),
+              child: rotas.isEmpty
+                  ? ListView(
+                      padding: const EdgeInsets.all(24),
                       children: [
-                        Icon(
-                          Icons.inbox_outlined,
-                          size: 64,
-                          color: Colors.grey.shade300,
-                        ),
-                        const SizedBox(height: 16),
-                        const Text(
-                          'Nenhuma rota cadastrada',
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: Colors.grey,
+                        SizedBox(
+                          height: MediaQuery.of(context).size.height * 0.35,
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.inbox_outlined,
+                                size: 64,
+                                color: Colors.grey.shade300,
+                              ),
+                              const SizedBox(height: 16),
+                              const Text(
+                                'Nenhuma rota cadastrada',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  color: Colors.grey,
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              SizedBox(
+                                width: 180,
+                                child: ElevatedButton.icon(
+                                  onPressed: () async {
+                                    await Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) =>
+                                            const AddRotaScreen(),
+                                      ),
+                                    );
+                                    _loadRotas();
+                                  },
+                                  icon: const Icon(Icons.add),
+                                  label: const Text('Cadastrar rota'),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ],
+                    )
+                  : ListView.builder(
+                      padding: const EdgeInsets.all(8),
+                      itemCount: rotas.length,
+                      itemBuilder: (context, index) {
+                        return RotaCard(
+                          rota: rotas[index],
+                          onDelete: () => _showDeleteDialog(rotas[index].id!),
+                          onEdit: () async {
+                            await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    AddRotaScreen(rota: rotas[index]),
+                              ),
+                            );
+                            _loadRotas();
+                          },
+                        );
+                      },
                     ),
-                  )
-                : ListView.builder(
-                    padding: const EdgeInsets.all(8),
-                    itemCount: rotas.length,
-                    itemBuilder: (context, index) {
-                      return RotaCard(
-                        rota: rotas[index],
-                        onDelete: () => _showDeleteDialog(rotas[index].id!),
-                        onEdit: () async {
-                          await Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) =>
-                                  AddRotaScreen(rota: rotas[index]),
-                            ),
-                          );
-                          _loadRotas();
-                        },
-                      );
-                    },
-                  ),
+            ),
           ),
         ],
       ),

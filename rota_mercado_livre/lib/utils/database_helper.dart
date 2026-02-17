@@ -404,6 +404,50 @@ class DatabaseHelper {
     return double.tryParse(total.toString()) ?? 0.0;
   }
 
+  Future<List<Despesa>> getDespesasByDateRange(DateTime startDate, DateTime endDate) async {
+    final db = await database;
+    final startIso = _formatDate(startDate);
+    final endIso = _formatDate(endDate);
+    final maps = await db.query(
+      despesasTable,
+      where: '$columnDespesaData BETWEEN ? AND ?',
+      whereArgs: [startIso, endIso],
+      orderBy: '$columnDespesaData DESC',
+    );
+    return List.generate(maps.length, (i) => Despesa.fromMap(maps[i]));
+  }
+
+  Future<Despesa?> getDespesa(int id) async {
+    final db = await database;
+    final maps = await db.query(
+      despesasTable,
+      where: '$columnDespesaId = ?',
+      whereArgs: [id],
+      limit: 1,
+    );
+    if (maps.isEmpty) return null;
+    return Despesa.fromMap(maps.first);
+  }
+
+  Future<int> updateDespesa(Despesa despesa) async {
+    final db = await database;
+    return await db.update(
+      despesasTable,
+      despesa.toMap(),
+      where: '$columnDespesaId = ?',
+      whereArgs: [despesa.id],
+    );
+  }
+
+  Future<int> deleteDespesa(int id) async {
+    final db = await database;
+    return await db.delete(
+      despesasTable,
+      where: '$columnDespesaId = ?',
+      whereArgs: [id],
+    );
+  }
+
   Future<void> setSetting(String key, String value) async {
     final db = await database;
     await db.insert(
