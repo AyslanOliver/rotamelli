@@ -114,41 +114,25 @@ class _ReportsScreenState extends State<ReportsScreen> {
                     onTap: () {},
                     borderRadius: BorderRadius.circular(8),
                     child: AppCard(
-                      gradient: LinearGradient(
-                        colors: [
-                          Theme.of(context).colorScheme.primaryContainer,
-                          Color.alphaBlend(Colors.black.withValues(alpha: 0.05), Theme.of(context).colorScheme.primaryContainer),
-                        ],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
+                      borderLeftColor: Theme.of(context).colorScheme.primary,
                       child: Row(
                         children: [
-                          Container(
-                            width: 40,
-                            height: 40,
-                            decoration: BoxDecoration(
-                              color: Color.alphaBlend(Colors.white.withValues(alpha: 0.2), Theme.of(context).colorScheme.primaryContainer),
-                              shape: BoxShape.circle,
-                            ),
-                            child: Icon(Icons.attach_money, color: ThemeData.estimateBrightnessForColor(Theme.of(context).colorScheme.primaryContainer) == Brightness.dark ? Colors.white : Colors.black),
-                          ),
-                          const SizedBox(width: 12),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Text('Total Rotas', style: TextStyle(fontSize: 14)),
-                                const SizedBox(height: 8),
+                                const Text('TOTAL ROTAS', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, letterSpacing: 0.6)),
+                                const SizedBox(height: 6),
                                 AnimatedSwitcher(
                                   duration: const Duration(milliseconds: 350),
-                                  child: Text('R\$ ${_totalRotas.toStringAsFixed(2)}', key: ValueKey(_totalRotas.toStringAsFixed(2)), style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                                  child: Text('R\$ ${_totalRotas.toStringAsFixed(2)}', key: ValueKey(_totalRotas.toStringAsFixed(2)), style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
                                 ),
-                                const SizedBox(height: 8),
-                                Text('Qtd. rotas: $_countRotas'),
+                                const SizedBox(height: 6),
+                                Text('Qtd. rotas: $_countRotas', style: TextStyle(color: Colors.grey.shade700)),
                               ],
                             ),
                           ),
+                          const Icon(Icons.attach_money, color: Colors.black38, size: 28),
                         ],
                       ),
                     ),
@@ -160,41 +144,25 @@ class _ReportsScreenState extends State<ReportsScreen> {
                     onTap: () {},
                     borderRadius: BorderRadius.circular(8),
                     child: AppCard(
-                      gradient: LinearGradient(
-                        colors: [
-                          Theme.of(context).colorScheme.errorContainer,
-                          Color.alphaBlend(Colors.black.withValues(alpha: 0.05), Theme.of(context).colorScheme.errorContainer),
-                        ],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
+                      borderLeftColor: Theme.of(context).colorScheme.error,
                       child: Row(
                         children: [
-                          Container(
-                            width: 40,
-                            height: 40,
-                            decoration: BoxDecoration(
-                              color: Color.alphaBlend(Colors.white.withValues(alpha: 0.2), Theme.of(context).colorScheme.errorContainer),
-                              shape: BoxShape.circle,
-                            ),
-                            child: Icon(Icons.receipt_long, color: ThemeData.estimateBrightnessForColor(Theme.of(context).colorScheme.errorContainer) == Brightness.dark ? Colors.white : Colors.black),
-                          ),
-                          const SizedBox(width: 12),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Text('Total Despesas', style: TextStyle(fontSize: 14)),
-                                const SizedBox(height: 8),
+                                const Text('TOTAL DESPESAS', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, letterSpacing: 0.6)),
+                                const SizedBox(height: 6),
                                 AnimatedSwitcher(
                                   duration: const Duration(milliseconds: 350),
-                                  child: Text('R\$ ${_totalDespesas.toStringAsFixed(2)}', key: ValueKey(_totalDespesas.toStringAsFixed(2)), style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                                  child: Text('R\$ ${_totalDespesas.toStringAsFixed(2)}', key: ValueKey(_totalDespesas.toStringAsFixed(2)), style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
                                 ),
-                                const SizedBox(height: 8),
-                                Text('Qtd. despesas: $_countDespesas'),
+                                const SizedBox(height: 6),
+                                Text('Qtd. despesas: $_countDespesas', style: TextStyle(color: Colors.grey.shade700)),
                               ],
                             ),
                           ),
+                          const Icon(Icons.receipt_long, color: Colors.black38, size: 28),
                         ],
                       ),
                     ),
@@ -207,32 +175,15 @@ class _ReportsScreenState extends State<ReportsScreen> {
               children: [
                 Expanded(
                   child: AppCard(
-                    gradient: LinearGradient(
-                      colors: [
-                        Theme.of(context).colorScheme.surfaceContainerHighest,
-                        Color.alphaBlend(Colors.black.withValues(alpha: 0.05), Theme.of(context).colorScheme.surfaceContainerHighest),
-                      ],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
+                    borderLeftColor: Theme.of(context).colorScheme.secondary,
                     child: Row(
                       children: [
-                        Container(
-                          width: 40,
-                          height: 40,
-                          decoration: BoxDecoration(
-                            color: Color.alphaBlend(Colors.white.withValues(alpha: 0.2), Theme.of(context).colorScheme.surfaceContainerHighest),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(Icons.local_shipping_outlined, color: ThemeData.estimateBrightnessForColor(Theme.of(context).colorScheme.surfaceContainerHighest) == Brightness.dark ? Colors.white : Colors.black),
-                        ),
-                        const SizedBox(width: 12),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text('Pacotes', style: TextStyle(fontSize: 14)),
-                              const SizedBox(height: 8),
+                              const Text('PACOTES', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, letterSpacing: 0.6)),
+                              const SizedBox(height: 6),
                               AnimatedSwitcher(
                                 duration: const Duration(milliseconds: 350),
                                 child: Text('Totais: $_sumPacotes', key: ValueKey(_sumPacotes), style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
@@ -245,6 +196,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                             ],
                           ),
                         ),
+                        const Icon(Icons.local_shipping_outlined, color: Colors.black38, size: 28),
                       ],
                     ),
                   ),

@@ -27,6 +27,8 @@ class DatabaseHelper {
   static const columnDespesaData = 'dataDespesa';
   static const columnDespesaValor = 'valor';
   static const columnDespesaCategoria = 'categoria';
+  // Romaneio
+  static const romaneioTable = 'romaneio_itens';
 
   static final DatabaseHelper _instance = DatabaseHelper._privateConstructor();
 
@@ -81,6 +83,24 @@ class DatabaseHelper {
         $columnSettingValue TEXT
       )
     ''');
+    await db.execute('''
+      CREATE TABLE $romaneioTable (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        numero TEXT,
+        idPacote TEXT,
+        cliente TEXT,
+        endereco TEXT,
+        numeroEndereco TEXT,
+        complemento TEXT,
+        bairro TEXT,
+        cidade TEXT,
+        cep TEXT,
+        tipoEndereco TEXT,
+        assinatura TEXT,
+        status TEXT DEFAULT 'pendente',
+        createdAt TEXT
+      )
+    ''');
   }
 
   Future _onOpen(Database db) async {
@@ -94,6 +114,25 @@ class DatabaseHelper {
         'CREATE INDEX IF NOT EXISTS idx_despesas_data ON $despesasTable($columnDespesaData)');
     await db.execute(
         'CREATE TABLE IF NOT EXISTS $settingsTable ($columnSettingKey TEXT PRIMARY KEY, $columnSettingValue TEXT)');
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS $romaneioTable (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        numero TEXT,
+        idPacote TEXT,
+        cliente TEXT,
+        endereco TEXT,
+        numeroEndereco TEXT,
+        complemento TEXT,
+        bairro TEXT,
+        cidade TEXT,
+        cep TEXT,
+        tipoEndereco TEXT,
+        assinatura TEXT,
+        status TEXT DEFAULT 'pendente',
+        createdAt TEXT
+      )
+    ''');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_romaneio_status ON $romaneioTable(status)');
   }
 
   // Insert
@@ -146,22 +185,36 @@ class DatabaseHelper {
   // Update
   Future<int> updateRota(Rota rota) async {
     Database db = await database;
-    return await db.update(
+    final count = await db.update(
       table,
       rota.toMap(),
       where: '$columnId = ?',
       whereArgs: [rota.id],
     );
+    try {
+      final base = await getSetting('api_base_url');
+      if (base != null && base.isNotEmpty) {
+        await ApiService(base).putRota(rota);
+      }
+    } catch (_) {}
+    return count;
   }
 
   // Delete
   Future<int> deleteRota(int id) async {
     Database db = await database;
-    return await db.delete(
+    final count = await db.delete(
       table,
       where: '$columnId = ?',
       whereArgs: [id],
     );
+    try {
+      final base = await getSetting('api_base_url');
+      if (base != null && base.isNotEmpty) {
+        await ApiService(base).deleteRota(id);
+      }
+    } catch (_) {}
+    return count;
   }
 
   // Delete all
@@ -192,6 +245,50 @@ class DatabaseHelper {
       }).toList());
     }
     await db.close();
+  }
+
+  Future<Map<String, dynamic>> exportAllToCloudflare({required String baseUrl, void Function(double, String)? onProgress}) async {
+    final rotas = await getAllRotas();
+    final despesas = await getAllDespesas();
+    final api = ApiService(baseUrl);
+    int importedRotas = 0;
+    int importedDespesas = 0;
+    List<List<T>> _chunks<T>(List<T> list, int size) {
+      final out = <List<T>>[];
+      for (var i = 0; i < list.length; i += size) {
+        out.add(list.sublist(i, i + size > list.length ? list.length : i + size));
+      }
+      return out;
+    }
+    int _asInt(dynamic v, int fallback) {
+      if (v == null) return fallback;
+      if (v is int) return v;
+      if (v is double) return v.toInt();
+      return int.tryParse(v.toString()) ?? fallback;
+    }
+    final rotasChunks = _chunks(rotas, 200);
+    final despesasChunks = _chunks(despesas, 200);
+    final totalChunks = rotasChunks.length + despesasChunks.length;
+    var done = 0;
+    onProgress?.call(0.0, 'Iniciando');
+    for (var i = 0; i < rotasChunks.length; i++) {
+      final ch = rotasChunks[i];
+      final res = await api.importAll(rotas: ch, despesas: const []);
+      importedRotas += _asInt(res['imported']?['rotas'], ch.length);
+      done++;
+      onProgress?.call(done / totalChunks, 'Rotas lote ${i + 1}/${rotasChunks.length}');
+    }
+    for (var j = 0; j < despesasChunks.length; j++) {
+      final ch = despesasChunks[j];
+      final res = await api.importAll(rotas: const [], despesas: ch);
+      importedDespesas += _asInt(res['imported']?['despesas'], ch.length);
+      done++;
+      onProgress?.call(done / totalChunks, 'Despesas lote ${j + 1}/${despesasChunks.length}');
+    }
+    return {
+      'ok': true,
+      'imported': {'rotas': importedRotas, 'despesas': importedDespesas}
+    };
   }
 
   // Get sum of values for a month
@@ -431,21 +528,35 @@ class DatabaseHelper {
 
   Future<int> updateDespesa(Despesa despesa) async {
     final db = await database;
-    return await db.update(
+    final count = await db.update(
       despesasTable,
       despesa.toMap(),
       where: '$columnDespesaId = ?',
       whereArgs: [despesa.id],
     );
+    try {
+      final base = await getSetting('api_base_url');
+      if (base != null && base.isNotEmpty) {
+        await ApiService(base).putDespesa(despesa);
+      }
+    } catch (_) {}
+    return count;
   }
 
   Future<int> deleteDespesa(int id) async {
     final db = await database;
-    return await db.delete(
+    final count = await db.delete(
       despesasTable,
       where: '$columnDespesaId = ?',
       whereArgs: [id],
     );
+    try {
+      final base = await getSetting('api_base_url');
+      if (base != null && base.isNotEmpty) {
+        await ApiService(base).deleteDespesa(id);
+      }
+    } catch (_) {}
+    return count;
   }
 
   Future<void> setSetting(String key, String value) async {
@@ -467,6 +578,36 @@ class DatabaseHelper {
     );
     if (maps.isEmpty) return null;
     return maps.first[columnSettingValue] as String?;
+  }
+  // Romaneio helpers
+  Future<void> clearRomaneio() async {
+    final db = await database;
+    await db.delete(romaneioTable);
+  }
+  Future<int> insertRomaneioItem(Map<String, dynamic> item) async {
+    final db = await database;
+    return db.insert(romaneioTable, item, conflictAlgorithm: ConflictAlgorithm.replace);
+  }
+  Future<void> insertRomaneioItemsBulk(List<Map<String, dynamic>> items) async {
+    final db = await database;
+    final batch = db.batch();
+    for (final it in items) {
+      batch.insert(romaneioTable, it, conflictAlgorithm: ConflictAlgorithm.replace);
+    }
+    await batch.commit(noResult: true);
+  }
+  Future<List<Map<String, dynamic>>> getRomaneio({String? status}) async {
+    final db = await database;
+    return db.query(
+      romaneioTable,
+      where: status != null ? 'status = ?' : null,
+      whereArgs: status != null ? [status] : null,
+      orderBy: 'id ASC',
+    );
+  }
+  Future<int> marcarConferido(int id, {bool conferido = true}) async {
+    final db = await database;
+    return db.update(romaneioTable, {'status': conferido ? 'conferido' : 'pendente'}, where: 'id = ?', whereArgs: [id]);
   }
   String _formatDate(DateTime d) {
     final y = d.year.toString().padLeft(4, '0');

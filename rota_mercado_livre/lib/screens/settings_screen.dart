@@ -10,12 +10,12 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  final _controller = TextEditingController();
-  final _dbNameController = TextEditingController(text: 'rota_ml');
   final _apiController = TextEditingController();
   late DatabaseHelper _db;
-  static const _defaultApi = 'https://rotamelli.onrender.com';
-  static const _oldDefaultApi = 'https://rota-ml.onrender.com';
+  static const _defaultApi = 'https://rota-ml-cloudflare-api.ayslano37.workers.dev';
+  bool _exporting = false;
+  double _progress = 0.0;
+  String _progressLabel = '';
   @override
   void initState() {
     super.initState();
@@ -24,15 +24,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _load() async {
-    final v = await _db.getSetting('mongo_connection_string');
-    final dbn = await _db.getSetting('mongo_db_name');
     final api = await _db.getSetting('api_base_url');
     setState(() {
-      _controller.text = v ?? '';
-      if (dbn != null && dbn.isNotEmpty) _dbNameController.text = dbn;
-      _apiController.text = (api == null || api.isEmpty || api == _oldDefaultApi) ? _defaultApi : api;
+      _apiController.text = (api == null || api.isEmpty) ? _defaultApi : api;
     });
-    if (api == null || api.isEmpty || api == _oldDefaultApi) {
+    if (api == null || api.isEmpty) {
       await _db.setSetting('api_base_url', _defaultApi);
     }
   }
@@ -91,29 +87,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 );
               }).toList(),
             ),
-            const SizedBox(height: 24),
-            Text('Conexão MongoDB', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.grey.shade800)),
-            const SizedBox(height: 8),
-            TextField(
-              controller: _controller,
-              decoration: const InputDecoration(
-                labelText: 'String de conexão (mongodb+srv://...)',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.cloud_outlined),
-              ),
-              minLines: 1,
-              maxLines: 3,
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: _dbNameController,
-              decoration: const InputDecoration(
-                labelText: 'Nome do banco (ex: rota_ml)',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.storage_outlined),
-              ),
-            ),
-            const SizedBox(height: 16),
             Text('API Base URL', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.grey.shade800)),
             const SizedBox(height: 8),
             TextField(
@@ -130,8 +103,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 Expanded(
                   child: ElevatedButton.icon(
                     onPressed: () async {
-                      await _db.setSetting('mongo_connection_string', _controller.text.trim());
-                      await _db.setSetting('mongo_db_name', _dbNameController.text.trim());
                       await _db.setSetting('api_base_url', _apiController.text.trim());
                       if (!mounted) return;
                       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Conexão salva localmente')));
@@ -164,7 +135,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       }
                     },
                     icon: const Icon(Icons.wifi_tethering),
-                    label: const Text('Testar API (Render)'),
+                    label: const Text('Testar API (Cloudflare)'),
                   ),
                 ),
               ],
@@ -173,30 +144,62 @@ class _SettingsScreenState extends State<SettingsScreen> {
             Row(
               children: [
                 Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () async {
-                      final conn = await _db.getSetting('mongo_connection_string');
-                      final dbn = await _db.getSetting('mongo_db_name') ?? _dbNameController.text.trim();
-                      if (conn == null || conn.isEmpty) {
+                  child: ElevatedButton.icon(
+                    onPressed: _exporting
+                        ? null
+                        : () async {
+                      final base = _apiController.text.trim().isNotEmpty ? _apiController.text.trim() : (await _db.getSetting('api_base_url') ?? '');
+                      if (base.isEmpty) {
                         if (!mounted) return;
-                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Informe a string de conexão')));
+                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Informe a API Base URL')));
                         return;
                       }
                       try {
-                        await _db.exportAllToMongo(connectionString: conn, databaseName: dbn.isEmpty ? 'rota_ml' : dbn);
+                        setState(() {
+                          _exporting = true;
+                          _progress = 0.0;
+                          _progressLabel = 'Iniciando';
+                        });
+                        final res = await _db.exportAllToCloudflare(
+                          baseUrl: base,
+                          onProgress: (p, label) {
+                            if (!mounted) return;
+                            setState(() {
+                              _progress = p;
+                              _progressLabel = label;
+                            });
+                          },
+                        );
                         if (!mounted) return;
-                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Exportação concluída')));
+                        setState(() {
+                          _exporting = false;
+                        });
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Importados: rotas ${res['imported']?['rotas'] ?? 0}, despesas ${res['imported']?['despesas'] ?? 0}')));
                       } catch (e) {
                         if (!mounted) return;
-                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Falha na exportação: $e')));
+                        setState(() {
+                          _exporting = false;
+                        });
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Falha ao importar para Cloudflare: $e')));
                       }
                     },
-                    icon: const Icon(Icons.cloud_upload_outlined),
-                    label: const Text('Exportar dados locais para MongoDB'),
+                    icon: const Icon(Icons.cloud_done_outlined),
+                    label: const Text('Exportar dados locais para Cloudflare D1'),
                   ),
                 ),
               ],
             ),
+            if (_exporting) ...[
+              const SizedBox(height: 12),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  LinearProgressIndicator(value: _progress == 0.0 ? null : _progress),
+                  const SizedBox(height: 8),
+                  Text(_progressLabel),
+                ],
+              ),
+            ],
           ],
         ),
       ),

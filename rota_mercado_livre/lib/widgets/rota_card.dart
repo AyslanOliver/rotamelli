@@ -26,15 +26,7 @@ class RotaCard extends StatelessWidget {
     final nomeDia = CalculoValor.getNomeDia(rota.dataRota);
     final moedaFormatada = CalculoValor.formatarMoeda(rota.valorCalculado);
 
-    final baseColor = Theme.of(context).colorScheme.primaryContainer;
-    final g = LinearGradient(
-      colors: [
-        baseColor,
-        Color.alphaBlend(Colors.black.withValues(alpha: 0.04), baseColor),
-      ],
-      begin: Alignment.topLeft,
-      end: Alignment.bottomRight,
-    );
+    final primary = Theme.of(context).colorScheme.primary;
 
     final tile = ExpansionTile(
       title: Row(
@@ -59,13 +51,47 @@ class RotaCard extends StatelessWidget {
             moedaFormatada,
             style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.green),
           ),
+          const SizedBox(width: 8),
+          PopupMenuButton<String>(
+            tooltip: 'Ações',
+            icon: const Icon(Icons.more_vert),
+            onSelected: (value) {
+              if (value == 'edit') {
+                onEdit();
+              } else if (value == 'delete') {
+                onDelete();
+              }
+            },
+            itemBuilder: (context) => [
+              const PopupMenuItem<String>(
+                value: 'edit',
+                child: Row(
+                  children: [
+                    Icon(Icons.edit, size: 18),
+                    SizedBox(width: 8),
+                    Text('Editar'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem<String>(
+                value: 'delete',
+                child: Row(
+                  children: [
+                    Icon(Icons.delete, size: 18, color: Colors.red),
+                    SizedBox(width: 8),
+                    Text('Deletar'),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ],
       ),
       children: [
         Padding(
           padding: const EdgeInsets.all(12),
           child: AppCard(
-            gradient: g,
+            borderLeftColor: primary,
             padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,

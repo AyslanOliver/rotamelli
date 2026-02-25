@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'screens/dashboard_screen.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'theme/sb2.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart' show ThemeMode;
 import 'screens/settings_screen.dart';
@@ -13,7 +15,7 @@ Future<void> main() async {
 }
 
 class AppThemeController extends ChangeNotifier {
-  Color seed = const Color(0xFF1769AA);
+  Color seed = const Color(0xFF4E73DF);
   ThemeMode mode = ThemeMode.light;
   void setSeed(Color c) {
     seed = c;
@@ -36,58 +38,70 @@ class MyApp extends StatelessWidget {
       animation: appThemeController,
       builder: (context, _) {
         final seed = appThemeController.seed;
+        final lightScheme = const ColorScheme(
+          brightness: Brightness.light,
+          primary: Color(0xFF4E73DF),
+          onPrimary: Colors.white,
+          secondary: Color(0xFF858796),
+          onSecondary: Colors.white,
+          error: Color(0xFFE74A3B),
+          onError: Colors.white,
+          background: Color(0xFFF8F9FC),
+          onBackground: Color(0xFF5A5C69),
+          surface: Colors.white,
+          onSurface: Color(0xFF5A5C69),
+        );
+        final sbTheme = ThemeData(
+          useMaterial3: true,
+          colorScheme: lightScheme,
+          brightness: Brightness.light,
+          scaffoldBackgroundColor: SB2.background,
+          appBarTheme: const AppBarTheme(
+            backgroundColor: SB2.surface,
+            foregroundColor: SB2.text,
+            centerTitle: true,
+            elevation: 2,
+          ),
+          drawerTheme: const DrawerThemeData(
+            backgroundColor: SB2.surface,
+            elevation: 2,
+          ),
+          cardTheme: CardThemeData(
+            color: SB2.surface,
+            elevation: 1,
+            shape: const RoundedRectangleBorder(borderRadius: SB2.cardRadius),
+          ),
+          textTheme: GoogleFonts.nunitoTextTheme(),
+          elevatedButtonTheme: ElevatedButtonThemeData(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: SB2.primary,
+              foregroundColor: SB2.surface,
+              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+              shape: const RoundedRectangleBorder(borderRadius: SB2.cardRadius),
+            ),
+          ),
+          outlinedButtonTheme: OutlinedButtonThemeData(
+            style: OutlinedButton.styleFrom(
+              foregroundColor: SB2.primary,
+              side: const BorderSide(color: SB2.primary),
+              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+              shape: const RoundedRectangleBorder(borderRadius: SB2.cardRadius),
+            ),
+          ),
+          listTileTheme: const ListTileThemeData(
+            iconColor: SB2.primary,
+            contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+          ),
+          dividerTheme: const DividerThemeData(
+            color: SB2.divider,
+            thickness: 1,
+          ),
+          splashColor: const Color(0xFFEAECF4),
+        );
         return MaterialApp(
           title: 'Rota Mercado Livre',
-          theme: ThemeData(
-            useMaterial3: true,
-            colorSchemeSeed: seed,
-            brightness: Brightness.light,
-            scaffoldBackgroundColor: const Color(0xFFF5F6FA),
-            appBarTheme: AppBarTheme(
-              backgroundColor: seed,
-              foregroundColor: Colors.white,
-              centerTitle: true,
-              elevation: 0,
-            ),
-            drawerTheme: const DrawerThemeData(
-              backgroundColor: Colors.white,
-              elevation: 2,
-            ),
-            cardTheme: CardThemeData(
-              color: seed.withOpacity(0.08),
-              elevation: 0,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-            elevatedButtonTheme: ElevatedButtonThemeData(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: seed,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              ),
-            ),
-            outlinedButtonTheme: OutlinedButtonThemeData(
-              style: OutlinedButton.styleFrom(
-                foregroundColor: seed,
-                side: BorderSide(color: seed),
-                padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              ),
-            ),
-            listTileTheme: ListTileThemeData(
-              iconColor: seed,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-            ),
-            dividerTheme: const DividerThemeData(
-              color: Color(0xFFE3E6EF),
-              thickness: 1,
-            ),
-          ),
-          darkTheme: ThemeData(
-            useMaterial3: true,
-            colorSchemeSeed: seed,
-            brightness: Brightness.dark,
-          ),
+          theme: sbTheme,
+          darkTheme: sbTheme,
           themeMode: appThemeController.mode,
           localizationsDelegates: const [
             GlobalMaterialLocalizations.delegate,

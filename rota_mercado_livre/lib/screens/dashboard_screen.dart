@@ -10,6 +10,7 @@ import 'settings_screen.dart';
 import 'reports_screen.dart';
 import 'help_screen.dart';
 import '../widgets/app_card.dart';
+import '../widgets/sb_sidebar.dart';
  
 enum QuinzenaFilter { full, first, second }
 
@@ -54,24 +55,38 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Future<void> _loadData() async {
-    final total = await _dbHelper.getSumValorByMonth(anoAtual, mesAtual);
-    final count = await _dbHelper.getCountByMonth(anoAtual, mesAtual);
-    final recents = await _dbHelper.getRecentRotasByMonth(anoAtual, mesAtual, limit: 5);
-    final despesasTotal = await _dbHelper.getSumDespesasByMonth(anoAtual, mesAtual);
-    final despesasCount = await _dbHelper.getCountDespesasByMonth(anoAtual, mesAtual);
-    final vulsoMes = await _dbHelper.getSumPacotesVulsoByMonth(anoAtual, mesAtual);
     final firstStart = DateTime(anoAtual, mesAtual, 1);
     final firstEnd = DateTime(anoAtual, mesAtual, 15);
     final secondStart = DateTime(anoAtual, mesAtual, 16);
     final secondEnd = DateTime(anoAtual, mesAtual + 1, 0);
-    final rotasFirst = await _dbHelper.getSumRotasByDateRange(firstStart, firstEnd);
-    final rotasSecond = await _dbHelper.getSumRotasByDateRange(secondStart, secondEnd);
-    final despesasFirst = await _dbHelper.getSumDespesasByDateRange(firstStart, firstEnd);
-    final despesasSecond = await _dbHelper.getSumDespesasByDateRange(secondStart, secondEnd);
-    final pacotesFirst = await _dbHelper.getSumQuantidadePacotesByDateRange(firstStart, firstEnd);
-    final pacotesSecond = await _dbHelper.getSumQuantidadePacotesByDateRange(secondStart, secondEnd);
-    final vulsoFirst = await _dbHelper.getSumPacotesVulsoByDateRange(firstStart, firstEnd);
-    final vulsoMesLocal = await _dbHelper.getSumPacotesVulsoByMonth(anoAtual, mesAtual);
+    final results = await Future.wait([
+      _dbHelper.getSumValorByMonth(anoAtual, mesAtual), // 0
+      _dbHelper.getCountByMonth(anoAtual, mesAtual), // 1
+      _dbHelper.getSumDespesasByMonth(anoAtual, mesAtual), // 2
+      _dbHelper.getCountDespesasByMonth(anoAtual, mesAtual), // 3
+      _dbHelper.getSumPacotesVulsoByMonth(anoAtual, mesAtual), // 4
+      _dbHelper.getSumRotasByDateRange(firstStart, firstEnd), // 5
+      _dbHelper.getSumRotasByDateRange(secondStart, secondEnd), // 6
+      _dbHelper.getSumDespesasByDateRange(firstStart, firstEnd), // 7
+      _dbHelper.getSumDespesasByDateRange(secondStart, secondEnd), // 8
+      _dbHelper.getSumQuantidadePacotesByDateRange(firstStart, firstEnd), // 9
+      _dbHelper.getSumQuantidadePacotesByDateRange(secondStart, secondEnd), // 10
+      _dbHelper.getSumPacotesVulsoByDateRange(firstStart, firstEnd), // 11
+      _dbHelper.getSumPacotesVulsoByDateRange(secondStart, secondEnd), // 12
+    ]);
+    final total = results[0] as double;
+    final count = results[1] as int;
+    final despesasTotal = results[2] as double;
+    final despesasCount = results[3] as int;
+    final vulsoMes = results[4] as int;
+    final rotasFirst = results[5] as double;
+    final rotasSecond = results[6] as double;
+    final despesasFirst = results[7] as double;
+    final despesasSecond = results[8] as double;
+    final pacotesFirst = results[9] as int;
+    final pacotesSecond = results[10] as int;
+    final vulsoFirst = results[11] as int;
+    final vulsoSecond = results[12] as int;
     double avulsoRemoto = avulsoValorMes;
     try {
       final apiBase = await _dbHelper.getSetting('api_base_url');
@@ -81,7 +96,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
         if (remote != null) avulsoRemoto = remote;
       }
     } catch (_) {}
-    final vulsoSecond = await _dbHelper.getSumPacotesVulsoByDateRange(secondStart, secondEnd);
     DateTime pStart, pEnd;
     if (_filter == QuinzenaFilter.full) {
       pStart = firstStart;
@@ -93,17 +107,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
       pStart = secondStart;
       pEnd = secondEnd;
     }
-    final periodRotas = await _dbHelper.getSumRotasByDateRange(pStart, pEnd);
-    final periodDespesas = await _dbHelper.getSumDespesasByDateRange(pStart, pEnd);
-    final periodRotasCount = (await _dbHelper.getRotasByDateRange(pStart, pEnd)).length;
+    final pResults = await Future.wait([
+      _dbHelper.getSumRotasByDateRange(pStart, pEnd),
+      _dbHelper.getSumDespesasByDateRange(pStart, pEnd),
+      _dbHelper.getRotasByDateRange(pStart, pEnd),
+    ]);
+    final periodRotas = pResults[0] as double;
+    final periodDespesas = pResults[1] as double;
+    final periodList = pResults[2] as List<Rota>;
+    periodList.sort((a, b) => b.dataRota.compareTo(a.dataRota));
+    final recents = periodList.take(5).toList();
     setState(() {
       totalMes = total;
       quantidadeMes = count;
       despesasMes = despesasTotal;
       netMes = totalMes - despesasMes;
-      avulsoValorMes = avulsoRemoto > 0 ? avulsoRemoto : vulsoMesLocal * CalculoValor.valorPacoteVulso;
+      avulsoValorMes = avulsoRemoto > 0 ? avulsoRemoto : vulsoMes * CalculoValor.valorPacoteVulso;
       despesasCountMes = despesasCount;
-      avulsoValorMes = vulsoMes * CalculoValor.valorPacoteVulso;
       primeiraQuinzenaRotas = rotasFirst;
       primeiraQuinzenaDespesas = despesasFirst;
       primeiraQuinzenaNet = rotasFirst - despesasFirst;
@@ -115,7 +135,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       recentes = recents;
       _periodRotas = periodRotas;
       _periodDespesas = periodDespesas;
-      _periodRotasCount = periodRotasCount;
+      _periodRotasCount = periodList.length;
     });
   }
 
@@ -144,92 +164,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
           const SizedBox(width: 8),
         ],
       ),
-      drawer: Drawer(
-        width: MediaQuery.of(context).size.width < 600 ? MediaQuery.of(context).size.width * 0.72 : 320,
-        child: SafeArea(
-          child: ListView(
-            padding: EdgeInsets.zero,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(16),
-                color: Theme.of(context).colorScheme.primaryContainer,
-                child: Row(
-                  children: [
-                    const Icon(Icons.dashboard_outlined),
-                    const SizedBox(width: 12),
-                    Text('Rota Mercado Livre', style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.onPrimaryContainer)),
-                  ],
-                ),
-              ),
-              const Divider(),
-              ListTile(
-                leading: const Icon(Icons.dashboard),
-                title: const Text('Dashboard'),
-                selected: true,
-                selectedTileColor: Theme.of(context).colorScheme.surfaceContainerHighest,
-                onTap: () => Navigator.pop(context),
-              ),
-              ListTile(
-                leading: const Icon(Icons.list_alt),
-                title: const Text('Rotas'),
-                trailing: quantidadeMes > 0 ? _Badge(count: quantidadeMes) : null,
-                onTap: () async {
-                  Navigator.pop(context);
-                  await Navigator.push(context, MaterialPageRoute(builder: (_) => const HomeScreen()));
-                  _loadData();
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.attach_money),
-                title: const Text('Despesas'),
-                trailing: despesasCountMes > 0 ? _Badge(count: despesasCountMes) : null,
-                onTap: () async {
-                  Navigator.pop(context);
-                  await Navigator.push(context, MaterialPageRoute(builder: (_) => const ExpensesScreen()));
-                  _loadData();
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.add_circle_outline),
-                title: const Text('Nova Rota'),
-                onTap: () async {
-                  Navigator.pop(context);
-                  await Navigator.push(context, MaterialPageRoute(builder: (_) => const AddRotaScreen()));
-                  _loadData();
-                },
-              ),
-              const Divider(),
-              ListTile(
-                leading: const Icon(Icons.bar_chart),
-                title: const Text('Relatórios'),
-                onTap: () async {
-                  Navigator.pop(context);
-                  await Navigator.push(context, MaterialPageRoute(builder: (_) => const ReportsScreen()));
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.settings),
-                title: const Text('Configurações'),
-                onTap: () async {
-                  Navigator.pop(context);
-                  await Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen()));
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.help_outline),
-                title: const Text('Ajuda'),
-                onTap: () async {
-                  Navigator.pop(context);
-                  await Navigator.push(context, MaterialPageRoute(builder: (_) => const HelpScreen()));
-                },
-              ),
-            ],
-          ),
-        ),
-      ),
+      drawer: SbSidebar(active: 'dashboard', rotasCount: quantidadeMes, despesasCount: despesasCountMes),
       body: Padding(
         padding: const EdgeInsets.all(16),
-        child: SingleChildScrollView(
+        child: RefreshIndicator(
+          onRefresh: _loadData,
+          displacement: 80,
+          edgeOffset: 8,
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -286,15 +229,40 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 mainAxisSpacing: 12,
                 crossAxisSpacing: 12,
                 children: [
-                  _MetricCard(title: 'Total do mês', value: totalMes, color: Theme.of(context).colorScheme.primaryContainer),
-                  _CountCard(title: 'Rotas no mês', count: quantidadeMes, color: Theme.of(context).colorScheme.secondaryContainer),
-                  _MetricCard(title: 'Despesas do mês', value: despesasMes, color: Theme.of(context).colorScheme.errorContainer),
-                  _MetricCard(title: 'Resultado do mês', value: netMes, color: Theme.of(context).colorScheme.tertiaryContainer),
-                  _MetricCard(title: r'Avulso (R$)', value: avulsoValorMes, color: Theme.of(context).colorScheme.secondaryContainer),
-                  _MetricCard(title: '1ª quinzena', value: primeiraQuinzenaNet, color: Theme.of(context).colorScheme.primaryContainer),
-                  _MetricCard(title: '2ª quinzena', value: segundaQuinzenaNet, color: Theme.of(context).colorScheme.secondaryContainer),
-                  _PacotesCard(title: 'Pacotes 1ª quinzena', total: primeiraQuinzenaPacotesTotais, vulso: primeiraQuinzenaPacotesVulso, color: Theme.of(context).colorScheme.surfaceContainerHighest),
-                  _PacotesCard(title: 'Pacotes 2ª quinzena', total: segundaQuinzenaPacotesTotais, vulso: segundaQuinzenaPacotesVulso, color: Theme.of(context).colorScheme.tertiaryContainer),
+                  // Paleta SB Admin 2
+                  // primary #4E73DF, secondary #858796, danger #E74A3B,
+                  // success #1CC88A, info #36B9CC, warning #F6C23E
+                  _MetricCard(
+                    title: _filter == QuinzenaFilter.full ? 'Total do mês' : 'Total do período',
+                    value: _filter == QuinzenaFilter.full ? totalMes : _periodRotas,
+                    color: const Color(0xFF4E73DF),
+                    icon: Icons.attach_money,
+                  ),
+                  _CountCard(
+                    title: _filter == QuinzenaFilter.full ? 'Rotas no mês' : 'Rotas no período',
+                    count: _filter == QuinzenaFilter.full ? quantidadeMes : _periodRotasCount,
+                    color: const Color(0xFF858796),
+                    icon: Icons.route,
+                  ),
+                  _MetricCard(
+                    title: _filter == QuinzenaFilter.full ? 'Despesas do mês' : 'Despesas do período',
+                    value: _filter == QuinzenaFilter.full ? despesasMes : _periodDespesas,
+                    color: const Color(0xFFE74A3B),
+                    icon: Icons.receipt_long,
+                  ),
+                  _MetricCard(
+                    title: _filter == QuinzenaFilter.full ? 'Resultado do mês' : 'Resultado do período',
+                    value: (_filter == QuinzenaFilter.full ? netMes : (_periodRotas - _periodDespesas)),
+                    color: (_filter == QuinzenaFilter.full ? netMes : (_periodRotas - _periodDespesas)) >= 0
+                        ? const Color(0xFF1CC88A)
+                        : const Color(0xFFE74A3B),
+                    icon: Icons.assessment,
+                  ),
+                  _MetricCard(title: r'Avulso (R$)', value: avulsoValorMes, color: const Color(0xFF36B9CC), icon: Icons.local_shipping),
+                  _MetricCard(title: '1ª quinzena', value: primeiraQuinzenaNet, color: const Color(0xFFF6C23E), icon: Icons.timeline),
+                  _MetricCard(title: '2ª quinzena', value: segundaQuinzenaNet, color: const Color(0xFF4E73DF), icon: Icons.timeline),
+                  _PacotesCard(title: 'Pacotes 1ª quinzena', total: primeiraQuinzenaPacotesTotais, vulso: primeiraQuinzenaPacotesVulso, color: const Color(0xFFF6C23E)),
+                  _PacotesCard(title: 'Pacotes 2ª quinzena', total: segundaQuinzenaPacotesTotais, vulso: segundaQuinzenaPacotesVulso, color: const Color(0xFF4E73DF)),
                 ],
               ),
               const SizedBox(height: 16),
@@ -335,10 +303,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ],
               ),
               const SizedBox(height: 24),
-              Text(
-                'Recentes',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.grey.shade800),
-              ),
+              Text('RECENTES',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.8,
+                    color: Color(0xFF4E73DF),
+                  )),
               const SizedBox(height: 8),
               AppCard(
                 child: recentes.isEmpty
@@ -367,6 +338,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
             ],
           ),
+          ),
         ),
       ),
     );
@@ -377,72 +349,38 @@ class _MetricCard extends StatelessWidget {
   final String title;
   final double value;
   final Color color;
-  const _MetricCard({required this.title, required this.value, required this.color});
+  final IconData icon;
+  const _MetricCard({required this.title, required this.value, required this.color, required this.icon});
   @override
   Widget build(BuildContext context) {
-    final textColor = ThemeData.estimateBrightnessForColor(color) == Brightness.dark ? Colors.white : Colors.black;
-    final g = LinearGradient(
-      colors: [
-        color,
-        Color.alphaBlend(Colors.black.withValues(alpha: 0.05), color),
-      ],
-      begin: Alignment.topLeft,
-      end: Alignment.bottomRight,
-    );
     return InkWell(
       onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ReportsScreen())),
       borderRadius: BorderRadius.circular(8),
       child: AppCard(
-        gradient: g,
+        borderLeftColor: color,
         child: Row(
           children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: Color.alphaBlend(Colors.white.withValues(alpha: 0.2), color),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(Icons.attach_money, color: textColor),
-            ),
-            const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: TextStyle(color: textColor, fontSize: 14)),
-                  const SizedBox(height: 8),
+                  Text(
+                    title.toUpperCase(),
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey.shade700, letterSpacing: 0.6),
+                  ),
+                  const SizedBox(height: 6),
                   AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 350),
-                    transitionBuilder: (child, anim) => FadeTransition(opacity: anim, child: child),
+                    duration: const Duration(milliseconds: 300),
                     child: Text(
                       CalculoValor.formatarMoeda(value),
                       key: ValueKey(value.toStringAsFixed(2)),
-                      style: TextStyle(color: textColor, fontSize: 22, fontWeight: FontWeight.bold),
+                      style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  LayoutBuilder(
-                    builder: (context, constraints) {
-                      return TweenAnimationBuilder<double>(
-                        tween: Tween(begin: 0, end: 1),
-                        duration: const Duration(milliseconds: 600),
-                        builder: (context, t, _) {
-                          return Container(
-                            width: constraints.maxWidth * t,
-                            height: 4,
-                            decoration: BoxDecoration(
-                              color: textColor.withValues(alpha: 0.3),
-                              borderRadius: BorderRadius.circular(2),
-                            ),
-                          );
-                        },
-                      );
-                    },
                   ),
                 ],
               ),
             ),
+            Tooltip(message: title, child: Icon(icon, color: Colors.black.withValues(alpha: 0.25), size: 28)),
           ],
         ),
       ),
@@ -454,53 +392,31 @@ class _CountCard extends StatelessWidget {
   final String title;
   final int count;
   final Color color;
-  const _CountCard({required this.title, required this.count, required this.color});
+  final IconData icon;
+  const _CountCard({required this.title, required this.count, required this.color, required this.icon});
   @override
   Widget build(BuildContext context) {
-    final textColor = ThemeData.estimateBrightnessForColor(color) == Brightness.dark ? Colors.white : Colors.black;
-    final g = LinearGradient(
-      colors: [
-        color,
-        Color.alphaBlend(Colors.black.withValues(alpha: 0.05), color),
-      ],
-      begin: Alignment.topLeft,
-      end: Alignment.bottomRight,
-    );
     return InkWell(
       onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const HomeScreen())),
       borderRadius: BorderRadius.circular(8),
       child: AppCard(
-        gradient: g,
+        borderLeftColor: color,
         child: Row(
           children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: Color.alphaBlend(Colors.white.withValues(alpha: 0.2), color),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(Icons.route, color: textColor),
-            ),
-            const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: TextStyle(color: textColor, fontSize: 14)),
-                  const SizedBox(height: 8),
+                  Text(title.toUpperCase(), style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey.shade700, letterSpacing: 0.6)),
+                  const SizedBox(height: 6),
                   AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 350),
-                    transitionBuilder: (child, anim) => ScaleTransition(scale: anim, child: child),
-                    child: Text(
-                      '$count',
-                      key: ValueKey(count),
-                      style: TextStyle(color: textColor, fontSize: 22, fontWeight: FontWeight.bold),
-                    ),
+                    duration: const Duration(milliseconds: 300),
+                    child: Text('$count', key: ValueKey(count), style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
                   ),
                 ],
               ),
             ),
+            Tooltip(message: title, child: Icon(icon, color: Colors.black.withValues(alpha: 0.25), size: 28)),
           ],
         ),
       ),
@@ -516,48 +432,28 @@ class _PacotesCard extends StatelessWidget {
   const _PacotesCard({required this.title, required this.total, required this.vulso, required this.color});
   @override
   Widget build(BuildContext context) {
-    final textColor = ThemeData.estimateBrightnessForColor(color) == Brightness.dark ? Colors.white : Colors.black;
-    final g = LinearGradient(
-      colors: [
-        color,
-        Color.alphaBlend(Colors.black.withValues(alpha: 0.05), color),
-      ],
-      begin: Alignment.topLeft,
-      end: Alignment.bottomRight,
-    );
     return InkWell(
       onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ReportsScreen())),
       borderRadius: BorderRadius.circular(8),
       child: AppCard(
-        gradient: g,
+        borderLeftColor: color,
         child: Row(
           children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: Color.alphaBlend(Colors.white.withValues(alpha: 0.2), color),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(Icons.local_shipping_outlined, color: textColor),
-            ),
-            const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: TextStyle(color: textColor, fontSize: 14)),
-                  const SizedBox(height: 8),
+                  Text(title.toUpperCase(), style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey.shade700, letterSpacing: 0.6)),
+                  const SizedBox(height: 6),
                   Row(
                     children: [
                       Expanded(
                         child: AnimatedSwitcher(
                           duration: const Duration(milliseconds: 350),
-                          transitionBuilder: (child, anim) => FadeTransition(opacity: anim, child: child),
                           child: Text(
                             'Totais: $total',
                             key: ValueKey('tot_$total'),
-                            style: TextStyle(color: textColor, fontSize: 20, fontWeight: FontWeight.bold),
+                            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                           ),
                         ),
                       ),
@@ -568,10 +464,10 @@ class _PacotesCard extends StatelessWidget {
                           key: ValueKey('v_$vulso'),
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(
-                            color: textColor.withValues(alpha: 0.15),
+                            color: Colors.black.withValues(alpha: 0.08),
                             borderRadius: BorderRadius.circular(12),
                           ),
-                          child: Text('Vulso: $vulso', style: TextStyle(color: textColor)),
+                          child: Text('Vulso: $vulso'),
                         ),
                       ),
                     ],
@@ -579,6 +475,7 @@ class _PacotesCard extends StatelessWidget {
                 ],
               ),
             ),
+            const Icon(Icons.local_shipping_outlined, color: Colors.black38, size: 28),
           ],
         ),
       ),

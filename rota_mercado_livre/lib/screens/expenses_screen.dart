@@ -8,6 +8,7 @@ import 'settings_screen.dart';
 import 'reports_screen.dart';
 import 'help_screen.dart';
 import '../widgets/app_card.dart';
+import '../widgets/sb_sidebar.dart';
 
 enum QuinzenaFilter { full, first, second }
 
@@ -120,86 +121,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
           ),
         ],
       ),
-      drawer: Drawer(
-        width: MediaQuery.of(context).size.width < 600 ? MediaQuery.of(context).size.width * 0.72 : 320,
-        child: SafeArea(
-          child: ListView(
-            padding: EdgeInsets.zero,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(16),
-                color: Theme.of(context).colorScheme.primaryContainer,
-                child: Row(
-                  children: [
-                    const Icon(Icons.dashboard_outlined),
-                    const SizedBox(width: 12),
-                    Text('Menu', style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.onPrimaryContainer)),
-                  ],
-                ),
-              ),
-              const Divider(),
-              ListTile(
-                leading: const Icon(Icons.dashboard),
-                title: const Text('Dashboard'),
-                onTap: () async {
-                  Navigator.pop(context);
-                  await Navigator.push(context, MaterialPageRoute(builder: (_) => const DashboardScreen()));
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.list_alt),
-                title: const Text('Rotas'),
-                trailing: rotasCountMes > 0 ? _Badge(count: rotasCountMes) : null,
-                onTap: () async {
-                  Navigator.pop(context);
-                  await Navigator.push(context, MaterialPageRoute(builder: (_) => const HomeScreen()));
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.attach_money),
-                title: const Text('Despesas'),
-                selected: true,
-                selectedTileColor: Theme.of(context).colorScheme.surfaceContainerHighest,
-                trailing: _Badge(count: _despesas.length),
-                onTap: () => Navigator.pop(context),
-              ),
-              ListTile(
-                leading: const Icon(Icons.add_circle_outline),
-                title: const Text('Nova Rota'),
-                onTap: () async {
-                  Navigator.pop(context);
-                  await Navigator.push(context, MaterialPageRoute(builder: (_) => const AddRotaScreen()));
-                },
-              ),
-              const Divider(),
-              ListTile(
-                leading: const Icon(Icons.bar_chart),
-                title: const Text('Relatórios'),
-                onTap: () async {
-                  Navigator.pop(context);
-                  await Navigator.push(context, MaterialPageRoute(builder: (_) => const ReportsScreen()));
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.settings),
-                title: const Text('Configurações'),
-                onTap: () async {
-                  Navigator.pop(context);
-                  await Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen()));
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.help_outline),
-                title: const Text('Ajuda'),
-                onTap: () async {
-                  Navigator.pop(context);
-                  await Navigator.push(context, MaterialPageRoute(builder: (_) => const HelpScreen()));
-                },
-              ),
-            ],
-          ),
-        ),
-      ),
+      drawer: SbSidebar(active: 'despesas', rotasCount: rotasCountMes, despesasCount: _despesas.length),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -238,27 +160,28 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
             ),
             const SizedBox(height: 8),
             AppCard(
-              gradient: LinearGradient(
-                colors: [
-                  Theme.of(context).colorScheme.primaryContainer,
-                  Color.alphaBlend(Colors.black.withValues(alpha: 0.05), Theme.of(context).colorScheme.primaryContainer),
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
+              borderLeftColor: Theme.of(context).colorScheme.primary,
               padding: const EdgeInsets.all(12),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text('Total do período', style: TextStyle(fontWeight: FontWeight.w600)),
-                  AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 350),
-                    child: Text(
-                      'R\$ ${_totalPeriodo.toStringAsFixed(2)}',
-                      key: ValueKey(_totalPeriodo.toStringAsFixed(2)),
-                      style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.onPrimaryContainer),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('TOTAL DO PERÍODO', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, letterSpacing: 0.6)),
+                        const SizedBox(height: 6),
+                        AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 350),
+                          child: Text(
+                            'R\$ ${_totalPeriodo.toStringAsFixed(2)}',
+                            key: ValueKey(_totalPeriodo.toStringAsFixed(2)),
+                            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
+                  const Icon(Icons.receipt_long, color: Colors.black38, size: 28),
                 ],
               ),
             ),

@@ -1,0 +1,14 @@
+name = "rota-ml-cloudflare-api"
+main = "src/index.ts"
+compatibility_date = "2026-02-17"
+account_id = "c0c527df17c1d65d2ca35df56b1f0a71"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+MONGODB_DB = "rotamelli"
+AVULSO_UNIT = "2"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "rotamelli"
+database_id = "d886b4a1-7fc3-4734-98be-e42f566474c6"

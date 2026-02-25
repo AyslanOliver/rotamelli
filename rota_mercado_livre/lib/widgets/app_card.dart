@@ -5,7 +5,8 @@ class AppCard extends StatelessWidget {
   final Gradient? gradient;
   final EdgeInsetsGeometry? padding;
   final Widget child;
-  const AppCard({super.key, this.color, this.gradient, this.padding, required this.child});
+  final Color? borderLeftColor;
+  const AppCard({super.key, this.color, this.gradient, this.padding, this.borderLeftColor, required this.child});
   @override
   Widget build(BuildContext context) {
     final c = color ?? Theme.of(context).colorScheme.surface;
@@ -15,6 +16,7 @@ class AppCard extends StatelessWidget {
         color: gradient == null ? c : null,
         gradient: gradient,
         borderRadius: BorderRadius.circular(8),
+        border: borderLeftColor != null ? Border(left: BorderSide(color: borderLeftColor!, width: 4)) : null,
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.05),
