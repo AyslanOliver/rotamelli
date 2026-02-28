@@ -18,8 +18,8 @@ class SB2 {
   static const double letterSpacing = 0.8;
 
   // Spacing
-  static const EdgeInsets cardPadding = EdgeInsets.all(16);
-  static const BorderRadius cardRadius = BorderRadius.all(Radius.circular(10));
+  static const EdgeInsets cardPadding = EdgeInsets.all(12);
+  static const BorderRadius cardRadius = BorderRadius.all(Radius.circular(8));
 
   // Animation
   static const Duration animDuration = Duration(milliseconds: 300);

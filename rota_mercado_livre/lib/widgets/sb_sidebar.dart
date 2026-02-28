@@ -34,7 +34,7 @@ class SbSidebar extends StatelessWidget {
             padding: EdgeInsets.zero,
             children: [
               Container(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: 0.08),
                 ),
@@ -165,7 +165,7 @@ class _NavItem extends StatelessWidget {
         if (!compact) Expanded(child: Text(label, style: TextStyle(color: onPrimary))),
         if ((count ?? 0) > 0)
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
             decoration: BoxDecoration(color: (badgeColor ?? Colors.white24), borderRadius: BorderRadius.circular(12)),
             child: Text('$count', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
           ),
@@ -174,7 +174,7 @@ class _NavItem extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
           color: active ? Colors.white.withValues(alpha: 0.18) : Colors.transparent,
           border: active ? const Border(left: BorderSide(color: Colors.white, width: 3)) : null,

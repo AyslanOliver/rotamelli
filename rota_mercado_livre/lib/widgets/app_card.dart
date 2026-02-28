@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/sb2.dart';
 
 class AppCard extends StatelessWidget {
   final Color? color;
@@ -11,17 +12,17 @@ class AppCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = color ?? Theme.of(context).colorScheme.surface;
     return Container(
-      padding: padding ?? const EdgeInsets.all(16),
+      padding: padding ?? SB2.cardPadding,
       decoration: BoxDecoration(
         color: gradient == null ? c : null,
         gradient: gradient,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: SB2.cardRadius,
         border: borderLeftColor != null ? Border(left: BorderSide(color: borderLeftColor!, width: 4)) : null,
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
+            blurRadius: 6,
+            offset: const Offset(0, 3),
           )
         ],
       ),

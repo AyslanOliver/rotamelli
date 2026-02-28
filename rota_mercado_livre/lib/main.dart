@@ -55,6 +55,7 @@ class MyApp extends StatelessWidget {
           useMaterial3: true,
           colorScheme: lightScheme,
           brightness: Brightness.light,
+          visualDensity: const VisualDensity(horizontal: -2, vertical: -2),
           scaffoldBackgroundColor: SB2.background,
           appBarTheme: const AppBarTheme(
             backgroundColor: SB2.surface,
@@ -76,7 +77,7 @@ class MyApp extends StatelessWidget {
             style: ElevatedButton.styleFrom(
               backgroundColor: SB2.primary,
               foregroundColor: SB2.surface,
-              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+              padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
               shape: const RoundedRectangleBorder(borderRadius: SB2.cardRadius),
             ),
           ),
@@ -84,13 +85,13 @@ class MyApp extends StatelessWidget {
             style: OutlinedButton.styleFrom(
               foregroundColor: SB2.primary,
               side: const BorderSide(color: SB2.primary),
-              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+              padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
               shape: const RoundedRectangleBorder(borderRadius: SB2.cardRadius),
             ),
           ),
           listTileTheme: const ListTileThemeData(
             iconColor: SB2.primary,
-            contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+            contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
           ),
           dividerTheme: const DividerThemeData(
             color: SB2.divider,

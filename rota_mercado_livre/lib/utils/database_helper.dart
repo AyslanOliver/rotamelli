@@ -609,6 +609,37 @@ class DatabaseHelper {
     final db = await database;
     return db.update(romaneioTable, {'status': conferido ? 'conferido' : 'pendente'}, where: 'id = ?', whereArgs: [id]);
   }
+  Future<int> marcarFaltante(int id, {bool faltante = true}) async {
+    final db = await database;
+    return db.update(romaneioTable, {'status': faltante ? 'faltante' : 'pendente'}, where: 'id = ?', whereArgs: [id]);
+  }
+  Future<int> deleteConferidos() async {
+    final db = await database;
+    return db.delete(romaneioTable, where: 'status = ?', whereArgs: ['conferido']);
+  }
+  Future<int> atualizarRomaneio(int id, Map<String, dynamic> fields) async {
+    final db = await database;
+    return db.update(romaneioTable, fields, where: 'id = ?', whereArgs: [id]);
+  }
+  Future<int> atualizarRomaneioPorIdPacote(String idPacote, Map<String, dynamic> fields) async {
+    final db = await database;
+    return db.update(romaneioTable, fields, where: 'idPacote = ?', whereArgs: [idPacote]);
+  }
+  Future<int> conferirSeNaoConferidoPorIdPacote(String idPacote) async {
+    final db = await database;
+    return db.update(
+      romaneioTable,
+      {'status': 'conferido'},
+      where: 'idPacote = ? AND status != ?',
+      whereArgs: [idPacote, 'conferido'],
+    );
+  }
+  Future<Map<String, dynamic>?> getRomaneioByIdPacote(String idPacote) async {
+    final db = await database;
+    final maps = await db.query(romaneioTable, where: 'idPacote = ?', whereArgs: [idPacote], limit: 1);
+    if (maps.isEmpty) return null;
+    return maps.first;
+  }
   String _formatDate(DateTime d) {
     final y = d.year.toString().padLeft(4, '0');
     final m = d.month.toString().padLeft(2, '0');
