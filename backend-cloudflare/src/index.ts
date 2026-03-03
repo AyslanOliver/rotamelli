@@ -17,6 +17,19 @@ app.use('/*', cors({
   maxAge: 600
 }))
 
+// Preflight explícito para qualquer rota
+app.options('/*', (c) => {
+  return new Response(null, {
+    status: 204,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      'Access-Control-Max-Age': '600'
+    }
+  })
+})
+
 const endpoints = [
   'GET /health',
   'POST /api/rotas',
