@@ -2,15 +2,22 @@
   const apiInput = document.getElementById('apiBase');
   const btnLoad = document.getElementById('btnLoad');
   const btnAdd = document.getElementById('btnAdd');
+  const btnLogin = document.getElementById('btnLogin');
+  const btnLogout = document.getElementById('btnLogout');
   const msg = document.getElementById('msg');
+  const loginMsg = document.getElementById('loginMsg');
   const tblBody = document.querySelector('#tbl tbody');
   const nameEl = document.getElementById('name');
   const emailEl = document.getElementById('email');
   const roleEl = document.getElementById('role');
   const pinEl = document.getElementById('pin');
   const activeEl = document.getElementById('active');
+  const loginEmail = document.getElementById('loginEmail');
+  const loginPin = document.getElementById('loginPin');
+  const loginBox = document.getElementById('login');
 
   apiInput.value = localStorage.getItem('apiBase') || '';
+  let token = localStorage.getItem('adminToken') || '';
 
   async function api(path, opt = {}) {
     const base = apiInput.value.trim().replace(/\/+$/, ''); // remove barras finais
@@ -23,11 +30,25 @@
     if (!resp.ok) throw new Error(`Falha: ${resp.status}`);
     return resp.json();
   }
+  async function apiAuth(path, opt = {}) {
+    const base = apiInput.value.trim().replace(/\/+$/, '');
+    if (!base) throw new Error('Informe API Base URL');
+    const headers = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = 'Bearer ' + token;
+    const resp = await fetch(base + path, {
+      method: opt.method || 'GET',
+      headers,
+      body: opt.body ? JSON.stringify(opt.body) : undefined,
+    });
+    if (!resp.ok) throw new Error(`Falha: ${resp.status}`);
+    return resp.json();
+  }
 
   async function loadUsers() {
     try {
       localStorage.setItem('apiBase', apiInput.value.trim());
-      const users = await api('/api/users');
+      if (!token) { msg.textContent = 'Faça login para carregar usuários.'; return; }
+      const users = await apiAuth('/api/users');
       tblBody.innerHTML = '';
       users.forEach(u => {
         const tr = document.createElement('tr');
@@ -49,6 +70,33 @@
       msg.textContent = `Erro: ${e.message}`;
     }
   }
+  function setLoggedIn(v) {
+    if (v) {
+      loginBox.style.display = 'none';
+      btnLogout.style.display = '';
+    } else {
+      loginBox.style.display = '';
+      btnLogout.style.display = 'none';
+    }
+  }
+  async function doLogin() {
+    loginMsg.textContent = '';
+    try {
+      const res = await api('/api/login', { method: 'POST', body: { email: loginEmail.value.trim(), pin: loginPin.value } });
+      if (!res?.ok || !res?.token) throw new Error(res?.error || 'Falha no login');
+      token = res.token;
+      localStorage.setItem('adminToken', token);
+      setLoggedIn(true);
+      await loadUsers();
+    } catch (e) {
+      loginMsg.textContent = `Erro: ${e.message}`;
+    }
+  }
+  function doLogout() {
+    token = '';
+    localStorage.removeItem('adminToken');
+    setLoggedIn(false);
+  }
 
   async function addUser() {
     const body = {
@@ -59,7 +107,7 @@
       active: Number(activeEl.value),
     };
     try {
-      await api('/api/users', { method: 'POST', body });
+      await apiAuth('/api/users', { method: 'POST', body });
       nameEl.value = ''; emailEl.value = ''; pinEl.value = ''; roleEl.value = 'user'; activeEl.value = '1';
       msg.textContent = 'Usuário criado.';
       await loadUsers();
@@ -76,7 +124,7 @@
     if (act === 'del') {
       if (!confirm('Excluir usuário?')) return;
       try {
-        await api(`/api/users/${id}`, { method: 'DELETE' });
+        await apiAuth(`/api/users/${id}`, { method: 'DELETE' });
         await loadUsers();
       } catch (e) {
         msg.textContent = `Erro ao excluir: ${e.message}`;
@@ -94,7 +142,7 @@
       if (active) body.active = Number(active);
       if (pin) body.pin = pin;
       try {
-        await api(`/api/users/${id}`, { method: 'PUT', body });
+        await apiAuth(`/api/users/${id}`, { method: 'PUT', body });
         await loadUsers();
       } catch (e) {
         msg.textContent = `Erro ao atualizar: ${e.message}`;
@@ -104,4 +152,9 @@
 
   btnLoad.addEventListener('click', loadUsers);
   btnAdd.addEventListener('click', addUser);
+  btnLogin.addEventListener('click', doLogin);
+  btnLogout.addEventListener('click', doLogout);
+
+  setLoggedIn(Boolean(token));
+  if (token) loadUsers();
 })();

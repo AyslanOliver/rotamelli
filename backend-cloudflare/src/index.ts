@@ -5,6 +5,7 @@ import type { D1Database } from '@cloudflare/workers-types'
 type Bindings = {
   DB: D1Database
   AVULSO_UNIT?: string
+  AUTH_SECRET?: string
 }
 
 const app = new Hono<{ Bindings: Bindings }>()
@@ -30,6 +31,51 @@ app.options('/*', (c) => {
   })
 })
 
+// ------- Auth helpers -------
+function b64url(data: ArrayBuffer) {
+  const str = String.fromCharCode.apply(null, Array.from(new Uint8Array(data)) as any)
+  return btoa(str).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+}
+function b64urlStr(s: string) {
+  return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+}
+async function signJWT(secret: string, payload: any) {
+  const enc = new TextEncoder()
+  const header = { alg: 'HS256', typ: 'JWT' }
+  const headerB64 = b64urlStr(JSON.stringify(header))
+  const payloadB64 = b64urlStr(JSON.stringify(payload))
+  const toSign = `${headerB64}.${payloadB64}`
+  const key = await crypto.subtle.importKey('raw', enc.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'])
+  const sig = await crypto.subtle.sign('HMAC', key, enc.encode(toSign))
+  const sigB64 = b64url(sig)
+  return `${toSign}.${sigB64}`
+}
+async function verifyJWT(secret: string, token: string) {
+  const enc = new TextEncoder()
+  const parts = token.split('.')
+  if (parts.length !== 3) return null
+  const [h, p, s] = parts
+  const toSign = `${h}.${p}`
+  const key = await crypto.subtle.importKey('raw', enc.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['verify'])
+  const sigBin = Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0))
+  const ok = await crypto.subtle.verify('HMAC', key, sigBin, enc.encode(toSign))
+  if (!ok) return null
+  const payload = JSON.parse(atob(p.replace(/-/g, '+').replace(/_/g, '/')))
+  if (payload?.exp && Date.now() / 1000 > payload.exp) return null
+  return payload
+}
+function requireAdmin(handler: (c: any) => Promise<Response> | Response) {
+  return async (c: any) => {
+    const secret = c.env.AUTH_SECRET || 'dev-secret'
+    const auth = c.req.header('Authorization') || ''
+    const m = auth.match(/^Bearer\s+(.+)$/)
+    if (!m) return c.json({ ok: false, error: 'unauthorized' }, 401)
+    const payload = await verifyJWT(secret, m[1])
+    if (!payload || payload.role !== 'admin') return c.json({ ok: false, error: 'forbidden' }, 403)
+    return handler(c)
+  }
+}
+
 const endpoints = [
   'GET /health',
   'POST /api/rotas',
@@ -46,6 +92,23 @@ const endpoints = [
 app.get('/', (c) => c.json({ name: 'rota-ml-cloudflare-api', status: 'ok', endpoints }))
 
 app.get('/health', (c) => c.json({ ok: true }))
+
+// Login
+app.post('/api/login', async (c) => {
+  await ensureUsers(c.env.DB)
+  const body = await c.req.json()
+  const email = String(body?.email ?? '').toLowerCase().trim()
+  const pin = String(body?.pin ?? '').trim()
+  if (!email || !pin) return c.json({ ok: false, error: 'email/pin obrigatórios' }, 400)
+  const { results } = await c.env.DB.prepare(`SELECT id, name, email, role, active, pinHash FROM users WHERE email = ?`).bind(email).all()
+  const u = (results ?? [])[0] as any
+  if (!u || Number(u.active) === 0) return c.json({ ok: false, error: 'usuário inválido' }, 401)
+  const pinHash = await hashPin(pin)
+  if ((u.pinHash ?? '') !== pinHash) return c.json({ ok: false, error: 'pin inválido' }, 401)
+  const exp = Math.floor(Date.now() / 1000) + 12 * 60 * 60 // 12h
+  const token = await signJWT(c.env.AUTH_SECRET || 'dev-secret', { sub: u.id, email: u.email, role: u.role ?? 'user', exp })
+  return c.json({ ok: true, token, user: { id: u.id, name: u.name, email: u.email, role: u.role, active: u.active } })
+})
 
 app.post('/api/rotas', async (c) => {
   const doc = await c.req.json()
@@ -255,15 +318,15 @@ function hashPin(pin: string) {
   })
 }
 
-app.get('/api/users', async (c) => {
+app.get('/api/users', requireAdmin(async (c) => {
   await ensureUsers(c.env.DB)
   const { results } = await c.env.DB.prepare(
     `SELECT id, name, email, role, active FROM users ORDER BY name ASC`
   ).all()
   return c.json(results ?? [])
-})
+}))
 
-app.post('/api/users', async (c) => {
+app.post('/api/users', requireAdmin(async (c) => {
   await ensureUsers(c.env.DB)
   const doc = await c.req.json()
   const name = String(doc?.name ?? '').trim()
@@ -277,9 +340,9 @@ app.post('/api/users', async (c) => {
     `INSERT INTO users (name, email, role, active, pinHash) VALUES (?, ?, ?, ?, ?)`
   ).bind(name, email, role, active, pinHash).run()
   return c.json({ ok: true, id: (res as any)?.meta?.last_row_id ?? null }, 201)
-})
+}))
 
-app.put('/api/users/:id', async (c) => {
+app.put('/api/users/:id', requireAdmin(async (c) => {
   await ensureUsers(c.env.DB)
   const id = Number(c.req.param('id'))
   const doc = await c.req.json()
@@ -299,13 +362,30 @@ app.put('/api/users/:id', async (c) => {
      WHERE id = ?`
   ).bind(name, email, role, active, pinHash, id).run()
   return c.json({ ok: true, changes: Number(((res as any)?.meta?.changes ?? 0)) })
-})
+}))
 
-app.delete('/api/users/:id', async (c) => {
+app.delete('/api/users/:id', requireAdmin(async (c) => {
   await ensureUsers(c.env.DB)
   const id = Number(c.req.param('id'))
   const res = await c.env.DB.prepare(`DELETE FROM users WHERE id = ?`).bind(id).run()
   return c.json({ ok: true, changes: Number(((res as any)?.meta?.changes ?? 0)) })
-})
+}))
 
+// Bootstrap inicial: criar admin sem auth quando não há usuários
+app.post('/api/bootstrap_admin', async (c) => {
+  await ensureUsers(c.env.DB)
+  const { results } = await c.env.DB.prepare(`SELECT COUNT(*) as cnt FROM users`).all()
+  const cnt = Number(((results ?? [])[0] as any)?.cnt ?? 0)
+  if (cnt > 0) return c.json({ ok: false, error: 'already_initialized' }, 403)
+  const body = await c.req.json()
+  const name = String(body?.name ?? '').trim() || 'Admin'
+  const email = String(body?.email ?? '').trim().toLowerCase()
+  const pin = String(body?.pin ?? '').trim()
+  if (!email || !pin) return c.json({ ok: false, error: 'email/pin obrigatórios' }, 400)
+  const pinHash = await hashPin(pin)
+  const res = await c.env.DB.prepare(
+    `INSERT INTO users (name, email, role, active, pinHash) VALUES (?, ?, 'admin', 1, ?)`
+  ).bind(name, email, pinHash).run()
+  return c.json({ ok: true, id: (res as any)?.meta?.last_row_id ?? null }, 201)
+})
 export default app

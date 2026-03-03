@@ -104,4 +104,17 @@ class ApiService {
     }
     return jsonDecode(resp.body) as Map<String, dynamic>;
   }
+
+  Future<Map<String, dynamic>> login(String email, String pin) async {
+    final resp = await http.post(
+      _url('/api/login'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'email': email, 'pin': pin}),
+    );
+    final data = jsonDecode(resp.body);
+    if (resp.statusCode >= 400) {
+      return {'ok': false, 'error': data['error'] ?? 'Falha no login'};
+    }
+    return Map<String, dynamic>.from(data);
+  }
 }

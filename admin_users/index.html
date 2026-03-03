@@ -14,9 +14,19 @@
           <input id="apiBase" type="text" placeholder="https://seu-worker.workers.dev">
         </label>
         <button id="btnLoad">Carregar</button>
+        <button id="btnLogout" style="display:none">Sair</button>
       </div>
     </header>
     <main>
+      <section id="login" class="form">
+        <h2>Login</h2>
+        <div class="grid">
+          <label>E-mail <input id="loginEmail" type="email"></label>
+          <label>PIN <input id="loginPin" type="password"></label>
+        </div>
+        <button id="btnLogin">Entrar</button>
+        <p id="loginMsg" class="msg"></p>
+      </section>
       <section class="form">
         <h2>Novo usuário</h2>
         <div class="grid">

@@ -7,6 +7,8 @@ import 'theme/sb2.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart' show ThemeMode;
 import 'screens/settings_screen.dart';
+import 'utils/database_helper.dart';
+import 'screens/login_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -112,7 +114,16 @@ class MyApp extends StatelessWidget {
           supportedLocales: const [
             Locale('pt', 'BR'),
           ],
-          home: const DashboardScreen(),
+          home: FutureBuilder<String?>(
+            future: DatabaseHelper().getSetting('auth_token'),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState != ConnectionState.done) {
+                return const Scaffold(body: Center(child: CircularProgressIndicator()));
+              }
+              final token = snapshot.data ?? '';
+              return token.isNotEmpty ? const DashboardScreen() : const LoginScreen();
+            },
+          ),
           debugShowCheckedModeBanner: false,
         );
       },
