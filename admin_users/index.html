@@ -10,10 +10,6 @@
     <header>
       <h1>Gestão de Usuários</h1>
       <div class="config">
-        <label>API Base URL
-          <input id="apiBase" type="text" placeholder="https://seu-worker.workers.dev">
-        </label>
-        <button id="btnLoad">Carregar</button>
         <button id="btnLogout" style="display:none">Sair</button>
       </div>
     </header>
@@ -22,11 +18,12 @@
         <h2>Login</h2>
         <div class="grid">
           <label>E-mail <input id="loginEmail" type="email"></label>
-          <label>PIN <input id="loginPin" type="password"></label>
+          <label>Senha <input id="loginPin" type="password"></label>
         </div>
         <button id="btnLogin">Entrar</button>
         <p id="loginMsg" class="msg"></p>
       </section>
+      <div id="adminPanel" style="display:none">
       <section class="form">
         <h2>Novo usuário</h2>
         <div class="grid">
@@ -65,6 +62,7 @@
           <tbody></tbody>
         </table>
       </section>
+      </div>
     </main>
     <script src="app.js"></script>
   </body>

@@ -1,6 +1,5 @@
 (() => {
-  const apiInput = document.getElementById('apiBase');
-  const btnLoad = document.getElementById('btnLoad');
+  const API_BASE = 'https://rota-ml-cloudflare-api.ayslano37.workers.dev';
   const btnAdd = document.getElementById('btnAdd');
   const btnLogin = document.getElementById('btnLogin');
   const btnLogout = document.getElementById('btnLogout');
@@ -15,14 +14,12 @@
   const loginEmail = document.getElementById('loginEmail');
   const loginPin = document.getElementById('loginPin');
   const loginBox = document.getElementById('login');
+  const adminPanel = document.getElementById('adminPanel');
 
-  apiInput.value = localStorage.getItem('apiBase') || '';
   let token = localStorage.getItem('adminToken') || '';
 
   async function api(path, opt = {}) {
-    const base = apiInput.value.trim().replace(/\/+$/, ''); // remove barras finais
-    if (!base) throw new Error('Informe API Base URL');
-    const resp = await fetch(base + path, {
+    const resp = await fetch(API_BASE + path, {
       method: opt.method || 'GET',
       headers: { 'Content-Type': 'application/json' },
       body: opt.body ? JSON.stringify(opt.body) : undefined,
@@ -31,11 +28,9 @@
     return resp.json();
   }
   async function apiAuth(path, opt = {}) {
-    const base = apiInput.value.trim().replace(/\/+$/, '');
-    if (!base) throw new Error('Informe API Base URL');
     const headers = { 'Content-Type': 'application/json' };
     if (token) headers['Authorization'] = 'Bearer ' + token;
-    const resp = await fetch(base + path, {
+    const resp = await fetch(API_BASE + path, {
       method: opt.method || 'GET',
       headers,
       body: opt.body ? JSON.stringify(opt.body) : undefined,
@@ -46,7 +41,6 @@
 
   async function loadUsers() {
     try {
-      localStorage.setItem('apiBase', apiInput.value.trim());
       if (!token) { msg.textContent = 'Faça login para carregar usuários.'; return; }
       const users = await apiAuth('/api/users');
       tblBody.innerHTML = '';
@@ -74,9 +68,11 @@
     if (v) {
       loginBox.style.display = 'none';
       btnLogout.style.display = '';
+      adminPanel.style.display = '';
     } else {
       loginBox.style.display = '';
       btnLogout.style.display = 'none';
+      adminPanel.style.display = 'none';
     }
   }
   async function doLogin() {
@@ -150,7 +146,6 @@
     }
   });
 
-  btnLoad.addEventListener('click', loadUsers);
   btnAdd.addEventListener('click', addUser);
   btnLogin.addEventListener('click', doLogin);
   btnLogout.addEventListener('click', doLogout);
