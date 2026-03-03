@@ -388,4 +388,100 @@ app.post('/api/bootstrap_admin', async (c) => {
   ).bind(name, email, pinHash).run()
   return c.json({ ok: true, id: (res as any)?.meta?.last_row_id ?? null }, 201)
 })
+
+// -------- Admin UI (same-origin) --------
+const adminHtml = `<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Gestão de Usuários</title>
+    <link rel="stylesheet" href="/admin/styles.css">
+  </head>
+  <body>
+    <header>
+      <h1>Gestão de Usuários</h1>
+      <div class="config">
+        <button id="btnLogout" style="display:none">Sair</button>
+      </div>
+    </header>
+    <main>
+      <section id="login" class="form">
+        <h2>Login</h2>
+        <div class="grid">
+          <label>E-mail <input id="loginEmail" type="email"></label>
+          <label>Senha <input id="loginPin" type="password"></label>
+        </div>
+        <button id="btnLogin">Entrar</button>
+        <p id="loginMsg" class="msg"></p>
+      </section>
+      <div id="adminPanel" style="display:none">
+      <section class="form">
+        <h2>Novo usuário</h2>
+        <div class="grid">
+          <label>Nome <input id="name" type="text"></label>
+          <label>E-mail <input id="email" type="email"></label>
+          <label>Perfil
+            <select id="role">
+              <option value="user">Usuário</option>
+              <option value="admin">Admin</option>
+            </select>
+          </label>
+          <label>PIN (opcional) <input id="pin" type="password"></label>
+          <label>Ativo
+            <select id="active">
+              <option value="1">Sim</option>
+              <option value="0">Não</option>
+            </select>
+          </label>
+        </div>
+        <button id="btnAdd">Adicionar</button>
+        <p id="msg" class="msg"></p>
+      </section>
+      <section>
+        <h2>Usuários</h2>
+        <table id="tbl">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Nome</th>
+              <th>E-mail</th>
+              <th>Perfil</th>
+              <th>Ativo</th>
+              <th>Ações</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </section>
+      </div>
+    </main>
+    <script src="/admin/app.js"></script>
+  </body>
+</html>`;
+
+const adminCss = `:root{--primary:#4E73DF;--surface:#fff;--bg:#F8F9FC;--text:#333;--muted:#777}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--text)}
+header{background:var(--surface);padding:12px 16px;border-bottom:1px solid #e3e6f0;display:flex;align-items:center;justify-content:space-between}
+h1{margin:0;font-size:18px}
+main{padding:16px;max-width:1000px;margin:0 auto}
+.config label{font-size:12px;color:var(--muted);display:inline-flex;align-items:center;gap:6px}
+input,select,button{padding:8px 10px;border:1px solid #ddd;border-radius:6px}
+button{background:var(--primary);color:#fff;border:none;cursor:pointer}
+button:hover{filter:brightness(1.05)}
+.form{background:var(--surface);padding:12px;border-radius:8px;border:1px solid #e3e6f0;margin-bottom:16px}
+.form h2{margin:0 0 8px 0;font-size:16px}
+.grid{display:grid;grid-template-columns:repeat(3,minmax(180px,1fr));gap:8px}
+table{width:100%;border-collapse:collapse;background:var(--surface);border:1px solid #e3e6f0;border-radius:8px;overflow:hidden}
+th,td{padding:8px;border-bottom:1px solid #f0f2f7}
+th{text-align:left;background:#f7f9ff}
+.msg{margin-top:8px;font-size:12px;color:var(--muted)}
+.actions{display:flex;gap:6px}`;
+
+const adminJs = `(()=>{const btnAdd=document.getElementById('btnAdd');const btnLogin=document.getElementById('btnLogin');const btnLogout=document.getElementById('btnLogout');const msg=document.getElementById('msg');const loginMsg=document.getElementById('loginMsg');const tblBody=document.querySelector('#tbl tbody');const nameEl=document.getElementById('name');const emailEl=document.getElementById('email');const roleEl=document.getElementById('role');const pinEl=document.getElementById('pin');const activeEl=document.getElementById('active');const loginEmail=document.getElementById('loginEmail');const loginPin=document.getElementById('loginPin');const loginBox=document.getElementById('login');const adminPanel=document.getElementById('adminPanel');let token=localStorage.getItem('adminToken')||'';async function api(path,opt={}){const resp=await fetch(path,{method:opt.method||'GET',headers:{'Content-Type':'application/json'},body:opt.body?JSON.stringify(opt.body):undefined});if(!resp.ok){let err='Falha: '+resp.status;try{const d=await resp.json();err=d.error||err}catch{}throw new Error(err)}return resp.json()}async function apiAuth(path,opt={}){const headers={'Content-Type':'application/json'};if(token)headers['Authorization']='Bearer '+token;const resp=await fetch(path,{method:opt.method||'GET',headers,body:opt.body?JSON.stringify(opt.body):undefined});if(!resp.ok){let err='Falha: '+resp.status;try{const d=await resp.json();err=d.error||err}catch{}throw new Error(err)}return resp.json()}async function loadUsers(){try{if(!token){msg.textContent='Faça login para carregar usuários.';return}const users=await apiAuth('/api/users');tblBody.innerHTML='';users.forEach(u=>{const tr=document.createElement('tr');tr.innerHTML=\\\`<td>\\\${u.id}</td><td>\\\${u.name??''}</td><td>\\\${u.email??''}</td><td>\\\${u.role??''}</td><td>\\\${Number(u.active)?'Sim':'Não'}</td><td class=\\"actions\\"><button data-act=\\"edit\\" data-id=\\"\\\${u.id}\\\">Editar</button><button data-act=\\"del\\" data-id=\\"\\\${u.id}\\\">Excluir</button></td>\\\`;tblBody.appendChild(tr)});msg.textContent='Carregados '+users.length+' usuário(s).'}catch(e){msg.textContent=\\\`Erro: \\${e.message}\\\`}}function setLoggedIn(v){if(v){loginBox.style.display='none';btnLogout.style.display='';adminPanel.style.display=''}else{loginBox.style.display='';btnLogout.style.display='none';adminPanel.style.display='none'}}async function doLogin(){loginMsg.textContent='';try{const res=await api('/api/login',{method:'POST',body:{email:loginEmail.value.trim(),pin:loginPin.value.trim()}});if(!res?.ok||!res?.token)throw new Error(res?.error||'Falha no login');token=res.token;localStorage.setItem('adminToken',token);setLoggedIn(true);await loadUsers()}catch(e){loginMsg.textContent=\\\`Erro: \\${e.message}\\\`}}function doLogout(){token='';localStorage.removeItem('adminToken');setLoggedIn(false)}async function addUser(){const body={name:nameEl.value.trim(),email:emailEl.value.trim(),role:roleEl.value,pin:pinEl.value,active:Number(activeEl.value)};try{await apiAuth('/api/users',{method:'POST',body});nameEl.value='';emailEl.value='';pinEl.value='';roleEl.value='user';activeEl.value='1';msg.textContent='Usuário criado.';await loadUsers()}catch(e){msg.textContent=\\\`Erro ao criar: \\${e.message}\\\`}}tblBody.addEventListener('click',async ev=>{const btn=ev.target.closest('button');if(!btn)return;const id=Number(btn.dataset.id);const act=btn.dataset.act;if(act==='del'){if(!confirm('Excluir usuário?'))return;try{await apiAuth(\\\`/api/users/\\${id}\\\`,{method:'DELETE'});await loadUsers()}catch(e){msg.textContent=\\\`Erro ao excluir: \\${e.message}\\\`}}else if(act==='edit'){const name=prompt('Nome:');const email=prompt('E-mail:');const role=prompt('Perfil (user/admin):');const active=prompt('Ativo (1/0):');const pin=prompt('PIN (opcional):');const body={};if(name)body.name=name;if(email)body.email=email;if(role)body.role=role;if(active)body.active=Number(active);if(pin)body.pin=pin;try{await apiAuth(\\\`/api/users/\\${id}\\\`,{method:'PUT',body});await loadUsers()}catch(e){msg.textContent=\\\`Erro ao atualizar: \\${e.message}\\\`}}});btnAdd.addEventListener('click',addUser);btnLogin.addEventListener('click',doLogin);btnLogout.addEventListener('click',doLogout);setLoggedIn(Boolean(token));if(token)loadUsers();})();`;
+
+app.get('/admin', (c) => new Response(adminHtml, { headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' } }))
+app.get('/admin/styles.css', (c) => new Response(adminCss, { headers: { 'content-type': 'text/css; charset=utf-8', 'cache-control': 'no-store' } }))
+app.get('/admin/app.js', (c) => new Response(adminJs, { headers: { 'content-type': 'application/javascript; charset=utf-8', 'cache-control': 'no-store' } }))
 export default app
