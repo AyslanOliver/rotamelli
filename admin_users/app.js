@@ -78,7 +78,7 @@
   async function doLogin() {
     loginMsg.textContent = '';
     try {
-      const res = await api('/api/login', { method: 'POST', body: { email: loginEmail.value.trim(), pin: loginPin.value } });
+      const res = await api('/api/login', { method: 'POST', body: { email: loginEmail.value.trim(), pin: loginPin.value.trim() } });
       if (!res?.ok || !res?.token) throw new Error(res?.error || 'Falha no login');
       token = res.token;
       localStorage.setItem('adminToken', token);

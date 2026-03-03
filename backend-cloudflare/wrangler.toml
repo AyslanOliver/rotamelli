@@ -7,6 +7,7 @@ compatibility_flags = ["nodejs_compat"]
 [vars]
 MONGODB_DB = "rotamelli"
 AVULSO_UNIT = "2"
+AUTH_SECRET = "rotamelli-super-secret-2026"
 
 [[d1_databases]]
 binding = "DB"
