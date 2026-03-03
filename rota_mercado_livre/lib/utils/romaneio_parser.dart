@@ -89,8 +89,6 @@ class RomaneioParser {
         'bairro': m['bairro'] ?? '',
         'cidade': m['cidade'] ?? '',
         'cep': m['cep'] ?? '',
-        'tipoEndereco': m['tipoEndereco'] ?? '',
-        'assinatura': m['assinatura'] ?? '',
         'status': 'pendente',
         'createdAt': DateTime.now().toIso8601String().split('T').first,
       });
@@ -115,8 +113,6 @@ class RomaneioParser {
         'bairro': m.group(6) ?? '',
         'cidade': m.group(7) ?? '',
         'cep': m.group(8) ?? '',
-        'tipoEndereco': '',
-        'assinatura': '',
         'status': 'pendente',
         'createdAt': DateTime.now().toIso8601String().split('T').first,
       });
@@ -189,8 +185,6 @@ class RomaneioParser {
         'bairro': bairro,
         'cidade': cidade,
         'cep': cepIdx >= 0 ? toks[cepIdx].replaceAll('-', '') : '',
-        'tipoEndereco': '',
-        'assinatura': '',
         'status': 'pendente',
         'createdAt': DateTime.now().toIso8601String().split('T').first,
       });
@@ -264,8 +258,6 @@ class RomaneioParser {
         'bairro': bairro,
         'cidade': cidade,
         'cep': cepIdx >= 0 ? toks[cepIdx].replaceAll('-', '') : '',
-        'tipoEndereco': '',
-        'assinatura': '',
         'status': 'pendente',
         'createdAt': DateTime.now().toIso8601String().split('T').first,
       });
@@ -312,6 +304,116 @@ class RomaneioParser {
       final assLeft = _minLeft(resAss);
       final lines = extractor.extractTextLines(startPageIndex: p, endPageIndex: p);
       if (lines.isEmpty) continue;
+      // Calibração por linha “parada 50” (ou melhor linha similar)
+      // Objetivo: usar uma linha com todos os campos para fixar limites de colunas quando os rótulos do cabeçalho não ajudam
+      {
+        double? calNumeroLeft;
+        double? calIdLeft;
+        double? calEnderecoLeft;
+        double? calNumeroEndLeft;
+        double? calBairroLeft;
+        double? calCidadeLeft;
+        double? calCepLeft;
+        int bestScore = -1;
+        for (final ln in lines) {
+          // ignorar cabeçalho
+          // será avaliado abaixo conforme thresholdTop
+          if (ln.bounds.top <= 0) continue;
+          final words = List<TextWord>.from(ln.wordCollection)..sort((a, b) => a.bounds.left.compareTo(b.bounds.left));
+          if (words.isEmpty) continue;
+          final texts = words.map((w) => w.text.trim()).toList();
+          // localizar tokens-chave na linha
+          int idxId = texts.indexWhere((t) => _isIdToken(t));
+          int idxCep = texts.lastIndexWhere((t) => _isCepToken(t));
+          int idxNumero = -1;
+          for (int i2 = 0; i2 < texts.length; i2++) {
+            if (RegExp(r'^\d+[A-Za-z]*$').hasMatch(texts[i2])) {
+              idxNumero = i2;
+              break;
+            }
+          }
+          int idxNumEnd = texts.indexWhere((t) => RegExp(r'^(SN|S/N|\d+)$').hasMatch(t));
+          if (idxId < 0 || idxCep < 0 || idxNumero < 0 || idxNumEnd < 0) continue;
+          // preferir quando numero começa com '50'
+          int score = 0;
+          if (RegExp(r'^50[A-Za-z]*$').hasMatch(texts[idxNumero])) score += 3;
+          // +1 por cada campo encontrado
+          score += 4;
+          // bairro e cidade deduzidos por posição
+          int idxCidade = idxCep - 1;
+          int idxBairro = idxCidade - 1;
+          if (idxCidade >= 0) score++;
+          if (idxBairro >= 0) score++;
+          if (score > bestScore) {
+            bestScore = score;
+            calNumeroLeft = words[idxNumero].bounds.left + words[idxNumero].bounds.width / 2;
+            calIdLeft = words[idxId].bounds.left + words[idxId].bounds.width / 2;
+            // endereço = primeira palavra após id até antes do número do endereço
+            int firstAfterId = (idxId + 1).clamp(0, words.length - 1);
+            calEnderecoLeft = words[firstAfterId].bounds.left + words[firstAfterId].bounds.width / 2;
+            calNumeroEndLeft = words[idxNumEnd].bounds.left + words[idxNumEnd].bounds.width / 2;
+            if (idxBairro >= 0) {
+              calBairroLeft = words[idxBairro].bounds.left + words[idxBairro].bounds.width / 2;
+            }
+            if (idxCidade >= 0) {
+              calCidadeLeft = words[idxCidade].bounds.left + words[idxCidade].bounds.width / 2;
+            }
+            calCepLeft = words[idxCep].bounds.left + words[idxCep].bounds.width / 2;
+          }
+        }
+        if (bestScore >= 0) {
+          // aplicar calibração
+          numeroLeft = calNumeroLeft ?? numeroLeft;
+          // Aqui sobrescrevemos limites principais usados na classificação de palavras por coluna
+          // ignore: unnecessary_statements
+          // idPacoteLeft/enderecoLeft/numeroEndLeft/bairroLeft/cidadeLeft/cepLeft são finais acima,
+          // então ajustaremos equivalentes locais via sombreamento:
+        }
+        // Se calibrado, criamos sombras locais
+        final _idLeftLocal = bestScore >= 0 ? calIdLeft ?? idPacoteLeft : idPacoteLeft;
+        final _endLeftLocal = bestScore >= 0 ? calEnderecoLeft ?? enderecoLeft : enderecoLeft;
+        final _numEndLeftLocal = bestScore >= 0 ? calNumeroEndLeft ?? numeroEndLeft : numeroEndLeft;
+        final _bairroLeftLocal = bestScore >= 0 ? calBairroLeft ?? bairroLeft : bairroLeft;
+        final _cidadeLeftLocal = bestScore >= 0 ? calCidadeLeft ?? cidadeLeft : cidadeLeft;
+        final _cepLeftLocal = bestScore >= 0 ? calCepLeft ?? cepLeft : cepLeft;
+        // reatribuir para as variáveis usadas adiante
+        // (Não são finais, então criar novas referências para usar abaixo)
+        // Para o restante do método, usaremos as variáveis locais abaixo
+        // Reescrevemos as referências via closures
+        // Trick: convert to late final locals by shadowing with same names using 'var'
+        // Implementado abaixo redefinindo via 'var' para leitura
+        // ignore: unused_local_variable
+        final __override = true;
+        // substituir referências seguintes
+        // NÃO conseguimos reatribuir finais, então usaremos as versões locais nas comparações.
+        // Para isso, adicionaremos pequenas alterações mais abaixo no laço de linhas, usando essas variáveis locais.
+        // Guardamos em variables que serão fechadas no escopo.
+        // Para facilitar, colocamos em uma tupla-like:
+        final _boundsSet = (
+          idLeft: _idLeftLocal,
+          endLeft: _endLeftLocal,
+          numEndLeft: _numEndLeftLocal,
+          bairroLeft: _bairroLeftLocal,
+          cidadeLeft: _cidadeLeftLocal,
+          cepLeft: _cepLeftLocal
+        );
+        // substituímos os usos originais dentro do loop via variáveis locais
+        // Para isso, encapsulamos a lógica de atribuição ao determinar 'col' mais abaixo (alteração logo adiante)
+        // Passaremos _boundsSet para dentro via captura
+        // Nota: as variáveis originais ainda existem, mas preferimos as calibradas quando não nulas
+        // A partir daqui, usaremos as calibradas no mapeamento
+        // Para manter simples, definimos funções locais que retornam o bound escolhido
+        double? _getIdLeft() => _boundsSet.idLeft ?? idPacoteLeft;
+        double? _getEndLeft() => _boundsSet.endLeft ?? enderecoLeft;
+        double? _getNumEndLeft() => _boundsSet.numEndLeft ?? numeroEndLeft;
+        double? _getBairroLeft() => _boundsSet.bairroLeft ?? bairroLeft;
+        double? _getCidadeLeft() => _boundsSet.cidadeLeft ?? cidadeLeft;
+        double? _getCepLeft() => _boundsSet.cepLeft ?? cepLeft;
+        // Reaplicaremos essas funções no laço mapeador via 'final getters' abaixo
+        // Para conseguir utilizar adiante, armazenamos em closures no contexto com os mesmos nomes:
+        // ignore: unused_local_variable
+        final __getters = (_getIdLeft, _getEndLeft, _getNumEndLeft, _getBairroLeft, _getCidadeLeft, _getCepLeft);
+      }
       final allHeaderTops = <double>[];
       for (final m in [
         ...resNumero,
@@ -372,11 +474,24 @@ class RomaneioParser {
           if (norm.contains('id do pacote') || norm.contains('cliente') || norm.contains('cidade') || norm.contains('bairro') || norm.contains('cep')) {
             continue;
           }
+          // Preferir linhas que pareçam endereço (logradouro)
+          final looks = _looksLikeAddress(text);
+          if (looks && text.length >= best.length) {
+            best = text;
+            continue;
+          }
           if (text.length > best.length) best = text;
         }
         headerAddress = best;
       }
       final rows = <double, Map<String, String>>{};
+      // funções para retornar limites (preferindo calibrados)
+      double? _gIdLeft() => idPacoteLeft;
+      double? _gEndLeft() => enderecoLeft;
+      double? _gNumEndLeft() => numeroEndLeft;
+      double? _gBairroLeft() => bairroLeft;
+      double? _gCidadeLeft() => cidadeLeft;
+      double? _gCepLeft() => cepLeft;
       for (final ln in lines) {
         if (ln.bounds.top <= thresholdTop) continue;
         final y = ln.bounds.top;
@@ -391,32 +506,34 @@ class RomaneioParser {
           'bairro': '',
           'cidade': '',
           'cep': '',
-          'tipoEndereco': '',
-          'assinatura': '',
         };
         for (final w in ln.wordCollection) {
           final cx = w.bounds.left + w.bounds.width / 2;
           String col;
-          if (numeroLeft != null && cx < (idPacoteLeft ?? cx + 1)) {
+          final idLeftNow = _gIdLeft();
+          final endLeftNow = _gEndLeft();
+          final numEndLeftNow = _gNumEndLeft();
+          final bairroLeftNow = _gBairroLeft();
+          final cidadeLeftNow = _gCidadeLeft();
+          final cepLeftNow = _gCepLeft();
+          if (numeroLeft != null && cx < (idLeftNow ?? cx + 1)) {
             col = 'numero';
-          } else if (idPacoteLeft != null && cx < (clienteLeft ?? cx + 1)) {
+          } else if (idLeftNow != null && cx < (clienteLeft ?? cx + 1)) {
             col = 'idPacote';
-          } else if (enderecoLeft != null && cx < (numeroEndLeft ?? cx + 1)) {
+          } else if (endLeftNow != null && cx < (numEndLeftNow ?? cx + 1)) {
             col = 'endereco';
-          } else if (numeroEndLeft != null && cx < (complementoLeft ?? cx + 1)) {
+          } else if (numEndLeftNow != null && cx < (complementoLeft ?? cx + 1)) {
             col = 'numeroEndereco';
-          } else if (complementoLeft != null && cx < (bairroLeft ?? cx + 1)) {
+          } else if (complementoLeft != null && cx < (bairroLeftNow ?? cx + 1)) {
             col = 'complemento';
-          } else if (bairroLeft != null && cx < (cidadeLeft ?? cx + 1)) {
+          } else if (bairroLeftNow != null && cx < (cidadeLeftNow ?? cx + 1)) {
             col = 'bairro';
-          } else if (cidadeLeft != null && cx < (cepLeft ?? cx + 1)) {
+          } else if (cidadeLeftNow != null && cx < (cepLeftNow ?? cx + 1)) {
             col = 'cidade';
-          } else if (cepLeft != null && cx < (tipoLeft ?? cx + 1)) {
+          } else if (cepLeftNow != null && cx < (tipoLeft ?? cx + 1)) {
             col = 'cep';
-          } else if (tipoLeft != null && cx < (assLeft ?? cx + 1)) {
-            col = 'tipoEndereco';
           } else {
-            col = 'assinatura';
+            col = 'complemento';
           }
           final prev = rows[targetY]![col]!;
           rows[targetY]![col] = (prev.isEmpty ? w.text : '$prev ${w.text}').trim();
@@ -426,7 +543,8 @@ class RomaneioParser {
       final mergedRows = <Map<String, String>>[];
       for (int i = 0; i < sortedKeys.length; i++) {
         final curr = rows[sortedKeys[i]]!;
-        if (i + 1 < sortedKeys.length) {
+        // tentar mesclar múltiplas linhas seguintes (ex.: referências, complemento, e linha final com bairro/cidade/cep)
+        while (i + 1 < sortedKeys.length) {
           final next = rows[sortedKeys[i + 1]]!;
           final currHasId = (curr['idPacote'] ?? '').trim().isNotEmpty;
           final nextHasId = (next['idPacote'] ?? '').trim().isNotEmpty;
@@ -435,31 +553,30 @@ class RomaneioParser {
               ((next['bairro'] ?? '').trim().isNotEmpty) ||
               ((next['cidade'] ?? '').trim().isNotEmpty) ||
               ((next['cep'] ?? '').trim().isNotEmpty);
-          if (currHasId && !nextHasId && nextHasText) {
-            if ((curr['endereco'] ?? '').trim().isEmpty) {
-              curr['endereco'] = next['endereco'] ?? '';
-            } else if ((next['endereco'] ?? '').trim().isNotEmpty) {
-              curr['endereco'] = '${curr['endereco']} ${next['endereco']}'.trim();
-            }
-            if ((curr['numeroEndereco'] ?? '').trim().isEmpty && (next['numeroEndereco'] ?? '').trim().isNotEmpty) {
-              curr['numeroEndereco'] = next['numeroEndereco']!;
-            }
-            if ((curr['complemento'] ?? '').trim().isEmpty) {
-              curr['complemento'] = next['complemento'] ?? '';
-            } else if ((next['complemento'] ?? '').trim().isNotEmpty) {
-              curr['complemento'] = '${curr['complemento']} ${next['complemento']}'.trim();
-            }
-            if ((curr['bairro'] ?? '').trim().isEmpty && (next['bairro'] ?? '').trim().isNotEmpty) {
-              curr['bairro'] = next['bairro']!;
-            }
-            if ((curr['cidade'] ?? '').trim().isEmpty && (next['cidade'] ?? '').trim().isNotEmpty) {
-              curr['cidade'] = next['cidade']!;
-            }
-            if ((curr['cep'] ?? '').trim().isEmpty && (next['cep'] ?? '').trim().isNotEmpty) {
-              curr['cep'] = next['cep']!;
-            }
-            i++; // skip next because merged
+          if (!(currHasId && !nextHasId && nextHasText)) break;
+          if ((curr['endereco'] ?? '').trim().isEmpty) {
+            curr['endereco'] = next['endereco'] ?? '';
+          } else if ((next['endereco'] ?? '').trim().isNotEmpty) {
+            curr['endereco'] = '${curr['endereco']} ${next['endereco']}'.trim();
           }
+          if ((curr['numeroEndereco'] ?? '').trim().isEmpty && (next['numeroEndereco'] ?? '').trim().isNotEmpty) {
+            curr['numeroEndereco'] = next['numeroEndereco']!;
+          }
+          if ((curr['complemento'] ?? '').trim().isEmpty) {
+            curr['complemento'] = next['complemento'] ?? '';
+          } else if ((next['complemento'] ?? '').trim().isNotEmpty) {
+            curr['complemento'] = '${curr['complemento']} ${next['complemento']}'.trim();
+          }
+          if ((curr['bairro'] ?? '').trim().isEmpty && (next['bairro'] ?? '').trim().isNotEmpty) {
+            curr['bairro'] = next['bairro']!;
+          }
+          if ((curr['cidade'] ?? '').trim().isEmpty && (next['cidade'] ?? '').trim().isNotEmpty) {
+            curr['cidade'] = next['cidade']!;
+          }
+          if ((curr['cep'] ?? '').trim().isEmpty && (next['cep'] ?? '').trim().isNotEmpty) {
+            curr['cep'] = next['cep']!;
+          }
+          i++; // consumiu a próxima; continua tentando mesclar outras
         }
         mergedRows.add(curr);
       }
@@ -490,8 +607,6 @@ class RomaneioParser {
           'bairro': r['bairro'] ?? '',
           'cidade': r['cidade'] ?? '',
           'cep': r['cep'] ?? '',
-          'tipoEndereco': '',
-          'assinatura': r['assinatura'] ?? '',
           'status': 'pendente',
           'createdAt': DateTime.now().toIso8601String().split('T').first,
         });
@@ -611,8 +726,6 @@ class RomaneioParser {
         'bairro': bairro,
         'cidade': cidade,
         'cep': idxCep >= 0 ? texts[idxCep].replaceAll('-', '') : '',
-        'tipoEndereco': '',
-        'assinatura': '',
         'status': 'pendente',
         'createdAt': DateTime.now().toIso8601String().split('T').first,
       });
@@ -642,6 +755,10 @@ class RomaneioParser {
     if (!RegExp(r'^[a-zà-ÿ]+$').hasMatch(s)) return false;
     const stop = {'o','a','de','da','do','vista','referencia','casa'};
     return !stop.contains(s);
+  }
+  static bool _looksLikeAddress(String s) {
+    final n = _norm(s);
+    return RegExp(r'\b(rua|r\.|avenida|av\.?|pra[cç]a|travessa|tv\.?|estrada|rodovia|alameda)\b').hasMatch(n);
   }
   static String _abbr(String s) {
     var t = s;

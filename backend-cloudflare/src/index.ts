@@ -14,7 +14,11 @@ const endpoints = [
   'GET  /api/rotas?year=YYYY&month=MM',
   'POST /api/despesas',
   'GET  /api/despesas?year=YYYY&month=MM',
-  'GET  /api/metrics/avulso-mes?year=YYYY&month=MM'
+  'GET  /api/metrics/avulso-mes?year=YYYY&month=MM',
+  'GET  /api/users',
+  'POST /api/users',
+  'PUT  /api/users/:id',
+  'DELETE /api/users/:id'
 ]
 
 app.get('/', (c) => c.json({ name: 'rota-ml-cloudflare-api', status: 'ok', endpoints }))
@@ -206,6 +210,80 @@ app.post('/api/import', async (c) => {
     const msg = err?.message ?? String(err)
     return c.json({ ok: false, error: msg }, 500)
   }
+})
+
+async function ensureUsers(db: D1Database) {
+  await db.prepare(
+    `CREATE TABLE IF NOT EXISTS users (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT,
+      email TEXT UNIQUE,
+      role TEXT,
+      active INTEGER DEFAULT 1,
+      pinHash TEXT
+    )`
+  ).run()
+}
+
+function hashPin(pin: string) {
+  const data = new TextEncoder().encode(pin)
+  return crypto.subtle.digest('SHA-256', data).then((buf) => {
+    const arr = Array.from(new Uint8Array(buf))
+    return arr.map((b) => b.toString(16).padStart(2, '0')).join('')
+  })
+}
+
+app.get('/api/users', async (c) => {
+  await ensureUsers(c.env.DB)
+  const { results } = await c.env.DB.prepare(
+    `SELECT id, name, email, role, active FROM users ORDER BY name ASC`
+  ).all()
+  return c.json(results ?? [])
+})
+
+app.post('/api/users', async (c) => {
+  await ensureUsers(c.env.DB)
+  const doc = await c.req.json()
+  const name = String(doc?.name ?? '').trim()
+  const email = String(doc?.email ?? '').trim().toLowerCase()
+  const role = String(doc?.role ?? 'user').trim()
+  const active = Number(doc?.active ?? 1) === 0 ? 0 : 1
+  const pin = String(doc?.pin ?? '').trim()
+  if (!name || !email) return c.json({ ok: false, error: 'Nome e e-mail obrigatórios' }, 400)
+  const pinHash = pin ? await hashPin(pin) : null
+  const res = await c.env.DB.prepare(
+    `INSERT INTO users (name, email, role, active, pinHash) VALUES (?, ?, ?, ?, ?)`
+  ).bind(name, email, role, active, pinHash).run()
+  return c.json({ ok: true, id: (res as any)?.meta?.last_row_id ?? null }, 201)
+})
+
+app.put('/api/users/:id', async (c) => {
+  await ensureUsers(c.env.DB)
+  const id = Number(c.req.param('id'))
+  const doc = await c.req.json()
+  const name = doc?.name != null ? String(doc.name).trim() : null
+  const email = doc?.email != null ? String(doc.email).trim().toLowerCase() : null
+  const role = doc?.role != null ? String(doc.role).trim() : null
+  const active = doc?.active != null ? (Number(doc.active) === 0 ? 0 : 1) : null
+  const pin = doc?.pin != null ? String(doc.pin).trim() : null
+  const pinHash = pin ? await hashPin(pin) : null
+  const res = await c.env.DB.prepare(
+    `UPDATE users
+     SET name = COALESCE(?, name),
+         email = COALESCE(?, email),
+         role = COALESCE(?, role),
+         active = COALESCE(?, active),
+         pinHash = COALESCE(?, pinHash)
+     WHERE id = ?`
+  ).bind(name, email, role, active, pinHash, id).run()
+  return c.json({ ok: true, changes: Number(((res as any)?.meta?.changes ?? 0)) })
+})
+
+app.delete('/api/users/:id', async (c) => {
+  await ensureUsers(c.env.DB)
+  const id = Number(c.req.param('id'))
+  const res = await c.env.DB.prepare(`DELETE FROM users WHERE id = ?`).bind(id).run()
+  return c.json({ ok: true, changes: Number(((res as any)?.meta?.changes ?? 0)) })
 })
 
 export default app

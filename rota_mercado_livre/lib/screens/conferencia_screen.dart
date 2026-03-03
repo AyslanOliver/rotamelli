@@ -178,6 +178,53 @@ class _ConferenciaScreenState extends State<ConferenciaScreen> {
           ),
           IconButton(
             onPressed: () async {
+              try {
+                final res = await FilePicker.platform.pickFiles(type: FileType.custom, allowedExtensions: ['pdf']);
+                if (res == null || res.files.isEmpty) return;
+                final file = res.files.first;
+                Uint8List bytes = file.bytes ?? await File(file.path!).readAsBytes();
+                final doc = PdfDocument(inputBytes: bytes);
+                final items = RomaneioParser.parseFromPdf(doc);
+                doc.dispose();
+                final byId = <String, Map<String, dynamic>>{};
+                for (final it in items) {
+                  final id = (it['idPacote'] ?? '').toString();
+                  if (id.isEmpty) continue;
+                  byId[id] = it;
+                }
+                int updated = 0;
+                for (final e in _itens) {
+                  final id = (e['idPacote'] ?? '').toString();
+                  if (id.isEmpty) continue;
+                  final ref = byId[id];
+                  if (ref == null) continue;
+                  bool needs = ((e['endereco'] ?? '').toString().trim().isEmpty) ||
+                      ((e['numeroEndereco'] ?? '').toString().trim().isEmpty) ||
+                      ((e['bairro'] ?? '').toString().trim().isEmpty) ||
+                      ((e['cidade'] ?? '').toString().trim().isEmpty) ||
+                      ((e['cep'] ?? '').toString().trim().isEmpty);
+                  if (!needs) continue;
+                  await _db.atualizarRomaneio(e['id'] as int, {
+                    'endereco': (ref['endereco'] ?? '').toString(),
+                    'numeroEndereco': (ref['numeroEndereco'] ?? '').toString(),
+                    'complemento': (ref['complemento'] ?? '').toString(),
+                    'bairro': (ref['bairro'] ?? '').toString(),
+                    'cidade': (ref['cidade'] ?? '').toString(),
+                    'cep': (ref['cep'] ?? '').toString(),
+                  });
+                  updated++;
+                }
+                await _load();
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Detalhes atualizados: $updated item(s).')));
+              } catch (err) {
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro: $err')));
+              }
+            },
+            tooltip: 'Preencher detalhes pelo PDF',
+            icon: const Icon(Icons.auto_fix_high),
+          ),
+          IconButton(
+            onPressed: () async {
               final ok = await showDialog<bool>(
                 context: context,
                 builder: (context) => AlertDialog(
@@ -249,7 +296,7 @@ class _ConferenciaScreenState extends State<ConferenciaScreen> {
                       children: [
                         FilterChip(
                           selected: _onlyPendentes,
-                          label: const Text('Apenas pendentes'),
+                          label: const Text('Pendentes'),
                           onSelected: (v) => setState(() {
                             _onlyPendentes = v;
                             if (v) {
@@ -260,7 +307,7 @@ class _ConferenciaScreenState extends State<ConferenciaScreen> {
                         ),
                         FilterChip(
                           selected: _onlyFaltantes,
-                          label: const Text('Apenas faltantes'),
+                          label: const Text('Faltantes'),
                           onSelected: (v) => setState(() {
                             _onlyFaltantes = v;
                             if (v) {
@@ -271,7 +318,7 @@ class _ConferenciaScreenState extends State<ConferenciaScreen> {
                         ),
                         FilterChip(
                           selected: _onlyConferidos,
-                          label: const Text('Apenas conferidos'),
+                          label: const Text('Conferidos'),
                           onSelected: (v) => setState(() {
                             _onlyConferidos = v;
                             if (v) {
@@ -422,6 +469,52 @@ class _ConferenciaScreenState extends State<ConferenciaScreen> {
                                             }
                                           },
                                           child: const Text('Abrir no Maps'),
+                                        ),
+                                        OutlinedButton(
+                                          onPressed: () async {
+                                            try {
+                                              final res = await FilePicker.platform.pickFiles(type: FileType.custom, allowedExtensions: ['pdf']);
+                                              if (res == null || res.files.isEmpty) return;
+                                              final file = res.files.first;
+                                              Uint8List bytes;
+                                              if (file.bytes != null) {
+                                                bytes = file.bytes!;
+                                              } else {
+                                                bytes = await File(file.path!).readAsBytes();
+                                              }
+                                              final doc = PdfDocument(inputBytes: bytes);
+                                              final items = RomaneioParser.parseFromPdf(doc);
+                                              doc.dispose();
+                                              final idTarget = (e['idPacote'] ?? '').toString();
+                                              final found = items.firstWhere(
+                                                (it) => (it['idPacote'] ?? '').toString() == idTarget,
+                                                orElse: () => {},
+                                              );
+                                              if (found.isNotEmpty) {
+                                                await _db.atualizarRomaneio(e['id'] as int, {
+                                                  'endereco': (found['endereco'] ?? '').toString(),
+                                                  'numeroEndereco': (found['numeroEndereco'] ?? '').toString(),
+                                                  'complemento': (found['complemento'] ?? '').toString(),
+                                                  'bairro': (found['bairro'] ?? '').toString(),
+                                                  'cidade': (found['cidade'] ?? '').toString(),
+                                                  'cep': (found['cep'] ?? '').toString(),
+                                                });
+                                                if (mounted) {
+                                                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Detalhes atualizados a partir do PDF.')));
+                                                }
+                                                await _load();
+                                              } else {
+                                                if (mounted) {
+                                                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('ID não localizado no PDF selecionado.')));
+                                                }
+                                              }
+                                            } catch (err) {
+                                              if (mounted) {
+                                                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro ao ler PDF: $err')));
+                                              }
+                                            }
+                                          },
+                                          child: const Text('Atualizar com PDF'),
                                         ),
                                         TextButton(
                                           onPressed: () async {

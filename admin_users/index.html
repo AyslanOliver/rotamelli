@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Gestão de Usuários</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <header>
+      <h1>Gestão de Usuários</h1>
+      <div class="config">
+        <label>API Base URL
+          <input id="apiBase" type="text" placeholder="https://seu-worker.workers.dev">
+        </label>
+        <button id="btnLoad">Carregar</button>
+      </div>
+    </header>
+    <main>
+      <section class="form">
+        <h2>Novo usuário</h2>
+        <div class="grid">
+          <label>Nome <input id="name" type="text"></label>
+          <label>E-mail <input id="email" type="email"></label>
+          <label>Perfil
+            <select id="role">
+              <option value="user">Usuário</option>
+              <option value="admin">Admin</option>
+            </select>
+          </label>
+          <label>PIN (opcional) <input id="pin" type="password"></label>
+          <label>Ativo
+            <select id="active">
+              <option value="1">Sim</option>
+              <option value="0">Não</option>
+            </select>
+          </label>
+        </div>
+        <button id="btnAdd">Adicionar</button>
+        <p id="msg" class="msg"></p>
+      </section>
+      <section>
+        <h2>Usuários</h2>
+        <table id="tbl">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Nome</th>
+              <th>E-mail</th>
+              <th>Perfil</th>
+              <th>Ativo</th>
+              <th>Ações</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </section>
+    </main>
+    <script src="app.js"></script>
+  </body>
+  </html>

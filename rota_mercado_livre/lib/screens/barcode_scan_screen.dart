@@ -79,6 +79,9 @@ class _BarcodeScanScreenState extends State<BarcodeScanScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final size = MediaQuery.of(context).size;
+    final boxWidth = size.width * 0.82;
+    final boxHeight = size.height * 0.34;
     return Scaffold(
       appBar: AppBar(
         title: const Text('Scanner de Código de Barras'),
@@ -96,43 +99,60 @@ class _BarcodeScanScreenState extends State<BarcodeScanScreen> {
       body: Column(
         children: [
           Expanded(
-            child: Stack(
-              fit: StackFit.expand,
+            child: Column(
               children: [
-                MobileScanner(
-                  controller: _controller,
-                  onDetect: (capture) {
-                    if (_paused) return;
-                    for (final b in capture.barcodes) {
-                      final raw = b.rawValue ?? '';
-                      if (raw.isEmpty) continue;
-                      _paused = true;
-                      _process(raw).whenComplete(() {
-                        Future.delayed(const Duration(milliseconds: 600), () {
-                          _paused = false;
-                        });
-                      });
-                      break;
-                    }
-                  },
-                ),
-                Align(
-                  alignment: Alignment.bottomCenter,
-                  child: Container(
-                    width: double.infinity,
-                    color: Colors.black54,
-                    padding: const EdgeInsets.all(12),
-                    child: DefaultTextStyle(
-                      style: const TextStyle(color: Colors.white),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Último: ${_last.isEmpty ? '—' : _last}'),
-                          const SizedBox(height: 4),
-                          Text('Conferidos: $_ok • Não encontrados: $_naoEncontrado'),
-                        ],
+                const SizedBox(height: 12),
+                Center(
+                  child: Stack(
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: SizedBox(
+                          width: boxWidth,
+                          height: boxHeight,
+                          child: MobileScanner(
+                            controller: _controller,
+                            onDetect: (capture) {
+                              if (_paused) return;
+                              for (final b in capture.barcodes) {
+                                final raw = b.rawValue ?? '';
+                                if (raw.isEmpty) continue;
+                                _paused = true;
+                                _process(raw).whenComplete(() {
+                                  Future.delayed(const Duration(milliseconds: 600), () {
+                                    _paused = false;
+                                  });
+                                });
+                                break;
+                              }
+                            },
+                          ),
+                        ),
                       ),
+                      IgnorePointer(
+                        child: CustomPaint(
+                          painter: _ScanFramePainter(),
+                          size: Size(boxWidth, boxHeight),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const Spacer(),
+                Container(
+                  width: double.infinity,
+                  color: Colors.black54,
+                  padding: const EdgeInsets.all(12),
+                  child: DefaultTextStyle(
+                    style: const TextStyle(color: Colors.white),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Último: ${_last.isEmpty ? '—' : _last}'),
+                        const SizedBox(height: 4),
+                        Text('Conferidos: $_ok • Não encontrados: $_naoEncontrado'),
+                      ],
                     ),
                   ),
                 ),
@@ -158,4 +178,33 @@ class _BarcodeScanScreenState extends State<BarcodeScanScreen> {
       ),
     );
   }
+}
+
+class _ScanFramePainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.orange
+      ..strokeWidth = 4
+      ..style = PaintingStyle.stroke;
+    final edge = 24.0;
+    // corners
+    // top-left
+    canvas.drawLine(Offset(0, 0), Offset(edge, 0), paint);
+    canvas.drawLine(Offset(0, 0), Offset(0, edge), paint);
+    // top-right
+    canvas.drawLine(Offset(size.width, 0), Offset(size.width - edge, 0), paint);
+    canvas.drawLine(Offset(size.width, 0), Offset(size.width, edge), paint);
+    // bottom-left
+    canvas.drawLine(Offset(0, size.height), Offset(edge, size.height), paint);
+    canvas.drawLine(Offset(0, size.height), Offset(0, size.height - edge), paint);
+    // bottom-right
+    canvas.drawLine(Offset(size.width, size.height), Offset(size.width - edge, size.height), paint);
+    canvas.drawLine(Offset(size.width, size.height), Offset(size.width, size.height - edge), paint);
+    // middle guide line
+    canvas.drawLine(Offset(12, size.height / 2), Offset(size.width - 12, size.height / 2), paint..strokeWidth = 3);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
