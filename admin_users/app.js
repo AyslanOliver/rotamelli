@@ -13,7 +13,7 @@
   apiInput.value = localStorage.getItem('apiBase') || '';
 
   async function api(path, opt = {}) {
-    const base = apiInput.value.trim();
+    const base = apiInput.value.trim().replace(/\/+$/, ''); // remove barras finais
     if (!base) throw new Error('Informe API Base URL');
     const resp = await fetch(base + path, {
       method: opt.method || 'GET',

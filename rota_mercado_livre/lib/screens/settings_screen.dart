@@ -10,7 +10,6 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  final _apiController = TextEditingController();
   late DatabaseHelper _db;
   static const _defaultApi = 'https://rota-ml-cloudflare-api.ayslano37.workers.dev';
   bool _exporting = false;
@@ -25,9 +24,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _load() async {
     final api = await _db.getSetting('api_base_url');
-    setState(() {
-      _apiController.text = (api == null || api.isEmpty) ? _defaultApi : api;
-    });
     if (api == null || api.isEmpty) {
       await _db.setSetting('api_base_url', _defaultApi);
     }
@@ -87,39 +83,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 );
               }).toList(),
             ),
-            Text('API Base URL', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.grey.shade800)),
-            const SizedBox(height: 8),
-            TextField(
-              controller: _apiController,
-              decoration: const InputDecoration(
-                labelText: 'Ex: https://seu-backend.com',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.link_outlined),
-              ),
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: () async {
-                      await _db.setSetting('api_base_url', _apiController.text.trim());
-                      if (!mounted) return;
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Conexão salva localmente')));
-                    },
-                    icon: const Icon(Icons.save_outlined),
-                    label: const Text('Salvar'),
-                  ),
-                ),
-              ],
-            ),
+            // API Base URL oculta: usa padrão interno e configurações salvas
             const SizedBox(height: 12),
             Row(
               children: [
                 Expanded(
                   child: OutlinedButton.icon(
                     onPressed: () async {
-                      final base = _apiController.text.trim().isNotEmpty ? _apiController.text.trim() : (await _db.getSetting('api_base_url') ?? '');
+                      final base = await _db.getSetting('api_base_url') ?? _defaultApi;
                       if (base.isEmpty) {
                         if (!mounted) return;
                         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Informe a API Base URL')));
@@ -148,7 +119,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     onPressed: _exporting
                         ? null
                         : () async {
-                      final base = _apiController.text.trim().isNotEmpty ? _apiController.text.trim() : (await _db.getSetting('api_base_url') ?? '');
+                      final base = await _db.getSetting('api_base_url') ?? _defaultApi;
                       if (base.isEmpty) {
                         if (!mounted) return;
                         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Informe a API Base URL')));

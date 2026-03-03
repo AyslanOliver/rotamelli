@@ -1,4 +1,5 @@
 import { Hono } from 'hono'
+import { cors } from 'hono/cors'
 import type { D1Database } from '@cloudflare/workers-types'
 
 type Bindings = {
@@ -7,6 +8,14 @@ type Bindings = {
 }
 
 const app = new Hono<{ Bindings: Bindings }>()
+
+// CORS para chamadas do admin (localhost, etc.)
+app.use('/*', cors({
+  origin: '*',
+  allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowHeaders: ['Content-Type', 'Authorization'],
+  maxAge: 600
+}))
 
 const endpoints = [
   'GET /health',
